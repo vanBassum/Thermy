@@ -29,14 +29,14 @@ extern "C" void app_main(void)
     while (true)
     {
         appContext.GetWifiManager().Loop();
-        
+
         if(appContext.GetTimeManager().IsTimeValid())
         {
             float temp;
             if(appContext.GetSensorManager().GetTemperature(0, temp))
             {
                 DateTime now = DateTime::Now();
-                appContext.GetInfluxManager().Write("temperature", temp, now, pdMS_TO_TICKS(5000));
+                appContext.GetInfluxManager().Write("temperature", temp, now, pdMS_TO_TICKS(2000));
             }
             else
             {

@@ -12,16 +12,17 @@ void InfluxSession::Init(const char* url,
     _timestamp = timestamp;
     _req.Init(url, HTTP_METHOD_POST, timeout);
 
+    if (apiKey && *apiKey) {
+        char authHeader[160];
+        snprintf(authHeader, sizeof(authHeader), "Token %s", apiKey);
+        _req.SetHeader("Authorization", authHeader);
+    }
+    _req.SetHeader("Content-Type", "text/plain; charset=utf-8");
+
     if (!_req.Open()) {
         ESP_LOGE(TAG, "Failed to open HTTP request");
         return;
     }
-
-    char authHeader[160];
-    snprintf(authHeader, sizeof(authHeader), "Token %s", apiKey);
-    _req.SetHeader("Authorization", authHeader);
-    
-    _req.SetHeader("Content-Type", "text/plain; charset=utf-8");
 
     // Start writing the line protocol
     auto& stream = _req.Stream();
@@ -129,36 +130,34 @@ bool InfluxSession::Finish()
     writer.writeInt64(_timestamp.UtcSeconds());
     writer.writeChar('\n');
 
+    // send final zero-length chunk (HttpRequestStream::close handles this)
     stream.close();
 
-    esp_err_t err = esp_http_client_perform(_req.GetClientHandle());
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "HTTP perform error: %s", esp_err_to_name(err));
+    // Ensure the request is actually performed
+    esp_http_client_handle_t h = _req.GetClientHandle();   // add this accessor
+    esp_err_t perr = (h ? esp_http_client_perform(h) : ESP_FAIL);
+    if (perr != ESP_OK) {
+        ESP_LOGE(TAG, "HTTP perform error: %s", esp_err_to_name(perr));
+        // Don’t attempt to read if perform failed; status will be -1 or undefined
     }
 
     int status = _req.GetStatusCode();
     ESP_LOGI(TAG, "Influx write finished (timestamp=%lld, status=%d)",
              static_cast<long long>(_timestamp.UtcSeconds()), status);
 
-    if (status < 200 || status >= 300) {
-        char buffer[256];
-        int len = esp_http_client_read(_req.GetClientHandle(), buffer, sizeof(buffer) - 1);
-        if (len > 0) {
-            buffer[len] = '\0';
-            ESP_LOGE(TAG, "InfluxDB error response: %s", buffer);
+    // If we got a response, try to read body for diagnostics (optional)
+    if (perr == ESP_OK && h && status >= 400) {
+        char buf[256];
+        int n = esp_http_client_read(h, buf, sizeof(buf) - 1);
+        if (n > 0) {
+            buf[n] = '\0';
+            ESP_LOGE(TAG, "InfluxDB error response: %s", buf);
         } else {
             ESP_LOGE(TAG, "InfluxDB returned status %d, but no response body", status);
         }
-
-        // Optional: get error name if available
-        esp_err_t err = esp_http_client_get_errno(_req.GetClientHandle());
-        if (err != ESP_OK)
-            ESP_LOGE(TAG, "Underlying ESP error: %s", esp_err_to_name(err));
-
-        return false;
     }
 
-    return true;
+    return (status >= 200 && status < 300);
 }
 
 void InfluxSession::WriteEscaped(const char* text)

@@ -4,7 +4,6 @@
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"
 
-
 HttpRequest::~HttpRequest()
 {
     Close();
@@ -18,16 +17,21 @@ void HttpRequest::Init(const char *url, esp_http_client_method_t method, TickTyp
     _config.timeout_ms = pdTICKS_TO_MS(timeoutTicks);
     _config.crt_bundle_attach = esp_crt_bundle_attach;
 
+    // 💡 Initialize client immediately so headers can be set afterward
     _client = esp_http_client_init(&_config);
-    if (!_client)
+    if (!_client) {
         ESP_LOGE(TAG, "Failed to init HTTP client");
-    
+        return;
+    }
 }
 
 bool HttpRequest::Open()
 {
     if (_opened)
         return true;
+
+    // Tell the server we’ll stream the body in chunks
+    esp_http_client_set_header(_client, "Transfer-Encoding", "chunked");
 
     esp_err_t err = esp_http_client_open(_client, -1);
     if (err != ESP_OK)
@@ -42,16 +46,12 @@ bool HttpRequest::Open()
     _opened = true;
     return true;
 }
+
+// HttpRequest.cpp
 void HttpRequest::Close()
 {
     if (!_opened)
         return;
-
-    // Ensure request is performed before closing
-    esp_err_t err = esp_http_client_perform(_client);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "HTTP perform failed: %s", esp_err_to_name(err));
-    }
 
     _stream.close();
     esp_http_client_close(_client);
@@ -61,12 +61,11 @@ void HttpRequest::Close()
     _opened = false;
 }
 
+
 void HttpRequest::SetHeader(const char* key, const char* value)
 {
-    if (!_client)
-        return;
-
-    esp_http_client_set_header(_client, key, value);
+    if (_client)
+        esp_http_client_set_header(_client, key, value);
 }
 
 int HttpRequest::GetStatusCode() const

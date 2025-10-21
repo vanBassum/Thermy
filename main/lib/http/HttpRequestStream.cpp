@@ -1,5 +1,6 @@
 #include "HttpRequestStream.h"
 #include "esp_err.h"
+#include <cstdio>
 
 void HttpRequestStream::Init(esp_http_client_handle_t client, bool chunked)
 {
@@ -12,13 +13,26 @@ size_t HttpRequestStream::write(const void* data, size_t len)
     if (!_client || !data || len == 0)
         return 0;
 
-    int written = esp_http_client_write(_client, static_cast<const char*>(data), len);
-    if (written < 0)
+    if (_chunked)
     {
-        ESP_LOGE(TAG, "Write failed");
-        return 0;
+        // --- Send chunk header in hex + CRLF
+        char header[10];
+        int header_len = snprintf(header, sizeof(header), "%x\r\n", (unsigned int)len);
+        esp_http_client_write(_client, header, header_len);
+
+        // --- Send actual data
+        esp_http_client_write(_client, static_cast<const char*>(data), len);
+
+        // --- Send CRLF after data
+        esp_http_client_write(_client, "\r\n", 2);
     }
-    return static_cast<size_t>(written);
+    else
+    {
+        // Non-chunked direct write
+        esp_http_client_write(_client, static_cast<const char*>(data), len);
+    }
+
+    return len;
 }
 
 size_t HttpRequestStream::read(void* buffer, size_t len)
@@ -37,7 +51,7 @@ size_t HttpRequestStream::read(void* buffer, size_t len)
 
 void HttpRequestStream::flush()
 {
-    // esp_http_client_write is synchronous, so no buffering to flush.
+    // esp_http_client_write() is synchronous, no explicit flush needed.
 }
 
 void HttpRequestStream::close()
@@ -47,7 +61,7 @@ void HttpRequestStream::close()
 
     if (_chunked)
     {
-        // Write end-of-chunk marker (zero-length chunk)
+        // --- Send final zero-length chunk
         esp_http_client_write(_client, "0\r\n\r\n", 5);
     }
 
