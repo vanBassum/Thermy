@@ -3,6 +3,7 @@
 set(SOURCE_FILES_LIST
     "main.cpp"
     "app/DisplayManager/DisplayManager.cpp"
+    "app/SensorManager/SensorManager.cpp"
     "app/SettingsManager/SettingsManager.cpp"
     "app/WifiManager/WifiManager.cpp"
     "lib/http/HttpClient.cpp"
@@ -18,6 +19,7 @@ set(INCLUDE_DIRS_LIST
     "app"
     "lib"
     "app/DisplayManager"
+    "app/SensorManager"
     "app/SettingsManager"
     "app/WifiManager"
     "app/SettingsManager/Helpers"
@@ -42,4 +44,5 @@ idf_component_register(
         esp_netif
         driver 
         esp_http_client
+        onewire_bus
 )

@@ -1,7 +1,7 @@
 #pragma once
 
 // Forward declarations
-//class SensorManager;
+class SensorManager;
 class DisplayManager;
 class WifiManager;
 //class PowerManager;
@@ -13,7 +13,7 @@ class SettingsManager;
 class ServiceProvider
 {
 public:
-    //virtual SensorManager&   GetSensorManager() = 0;
+    virtual SensorManager&   GetSensorManager() = 0;
     virtual DisplayManager&  GetDisplayManager() = 0;
     virtual WifiManager&     GetWifiManager() = 0;
     //virtual PowerManager&    GetPowerManager() = 0;

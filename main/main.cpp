@@ -21,6 +21,7 @@ extern "C" void app_main(void)
 
     appContext.GetSettingsManager().Access([](RootSettings &settings) {
         ESP_LOGI(TAG, "Current settings:");
+
         appContext.GetSettingsManager().Print(settings);
     });
 
@@ -28,29 +29,7 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "Initializing WifiManager...");
     appContext.GetWifiManager().Init();
 
-    // Initialize Display
-    ESP_LOGI(TAG, "Initializing DisplayManager...");
-    appContext.GetDisplayManager().Init();
-
-
-    InfluxClient influx("http://192.168.50.96:8086/api/v2/write",
-        "TIPK7M91CfTF7mgC0BsV26M-VVXVn2RgQiA8yOJxUNAwp-G-a40MkOP4rP1c4ke5RPYMP5F9SPCEC2pomwLfJA==",
-        "koole",
-        "thermy");
-
-    DateTime now = DateTime::Now();
-    DateTime::FromStringLocal(now, "2025-10-21T16:18", DateTime::FormatIso8601);
-    char timeBuffer[64];
-    now.ToStringUtc(timeBuffer, sizeof(timeBuffer), DateTime::FormatIso8601);
-    ESP_LOGI(TAG, "Current UTC time: %s", timeBuffer);
-    now.ToStringLocal(timeBuffer, sizeof(timeBuffer), DateTime::FormatIso8601);
-    ESP_LOGI(TAG, "Current Local time: %s", timeBuffer);
-
-
-    influx.Measurement("temperature", now, pdMS_TO_TICKS(5000))
-        .withTag("sensor", "indoor")
-        .withField("value", 21.3f)
-        .Finish();
+    appContext.GetSensorManager().Init();
 
     // --------------------------------------------------------
     // Main loop
@@ -59,7 +38,7 @@ extern "C" void app_main(void)
     while (true)
     {
         appContext.GetWifiManager().Loop();
-        appContext.GetDisplayManager().Loop();
+        appContext.GetSensorManager().Loop();
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
