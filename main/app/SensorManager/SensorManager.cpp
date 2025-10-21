@@ -86,15 +86,3 @@ bool SensorManager::GetTemperature(int index, float &outTemp)
     ESP_LOGE(TAG, "Failed to read DS18B20[%d]: %s", index, esp_err_to_name(err));
     return false;
 }
-
-void SensorManager::Loop()
-{
-    if (!initGuard.IsReady())
-        return;
-
-    float temp;
-    if (GetTemperature(0, temp))
-    {
-        ESP_LOGI(TAG, "Current temperature: %.2f°C", temp);
-    }
-}

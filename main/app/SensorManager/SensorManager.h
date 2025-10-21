@@ -15,7 +15,6 @@ public:
     explicit SensorManager(ServiceProvider &ctx);
 
     void Init();
-    void Loop();
 
     int GetSensorCount() const { return sensorCount; }
     bool GetTemperature(int index, float &outTemp);

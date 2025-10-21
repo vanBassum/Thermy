@@ -1,5 +1,6 @@
 #pragma once
 #include "settings.h"
+#include "secrets.h"
 
 // ======================================================
 // Network settings
@@ -27,8 +28,8 @@ struct NetworkSettings : public ISettingsGroup
 // ------------------------------------------------------
 inline const SettingsDescriptor NetworkSettings::SCHEMA[] = {
     DESCRIPTOR_FIELD("wifi_ena", wifiEnabled, true),
-    DESCRIPTOR_FIELD("wifi_ssid", wifiSsid, ""),
-    DESCRIPTOR_FIELD("wifi_pwd", wifiPassword, ""),
+    DESCRIPTOR_FIELD("wifi_ssid", wifiSsid, WIFI_SSID),
+    DESCRIPTOR_FIELD("wifi_pwd", wifiPassword, WIFI_PASSWORD),
 };
 
 

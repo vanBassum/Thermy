@@ -1,77 +1,77 @@
 #include "HttpRequest.h"
-#include "esp_log.h"
 #include "esp_err.h"
-#include <cstring>
+#include "esp_log.h"
+#include "esp_http_client.h"
+#include "esp_crt_bundle.h"
 
-static const char* TAG = "HttpRequest";
 
-HttpRequest::HttpRequest(const char* url, esp_http_client_method_t method, TickType_t timeoutTicks)
-    : _client(nullptr),
-      _opened(false),
-      _timeoutTicks(timeoutTicks)
+HttpRequest::~HttpRequest()
+{
+    Close();
+}
+
+void HttpRequest::Init(const char *url, esp_http_client_method_t method, TickType_t timeoutTicks)
 {
     memset(&_config, 0, sizeof(_config));
     _config.url = url;
     _config.method = method;
+    _config.timeout_ms = pdTICKS_TO_MS(timeoutTicks);
+    _config.crt_bundle_attach = esp_crt_bundle_attach;
 
-    // Convert ticks → ms safely
-    int timeout_ms = (timeoutTicks * 1000) / configTICK_RATE_HZ;
-    _config.timeout_ms = timeout_ms;
-}
-
-HttpRequest::~HttpRequest()
-{
-    close();
-}
-
-bool HttpRequest::open()
-{
     _client = esp_http_client_init(&_config);
-    if (!_client) {
+    if (!_client)
         ESP_LOGE(TAG, "Failed to init HTTP client");
-        return false;
-    }
+    
+}
+
+bool HttpRequest::Open()
+{
+    if (_opened)
+        return true;
 
     esp_err_t err = esp_http_client_open(_client, -1);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to open HTTP request: %s", esp_err_to_name(err));
         esp_http_client_cleanup(_client);
         _client = nullptr;
         return false;
     }
 
+    _stream.Init(_client, true);
     _opened = true;
     return true;
 }
-
-void HttpRequest::close()
+void HttpRequest::Close()
 {
-    if (_client) {
-        esp_http_client_close(_client);
-        esp_http_client_cleanup(_client);
-        _client = nullptr;
-        _opened = false;
+    if (!_opened)
+        return;
+
+    // Ensure request is performed before closing
+    esp_err_t err = esp_http_client_perform(_client);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "HTTP perform failed: %s", esp_err_to_name(err));
     }
+
+    _stream.close();
+    esp_http_client_close(_client);
+    esp_http_client_cleanup(_client);
+
+    _client = nullptr;
+    _opened = false;
 }
 
-int HttpRequest::getStatusCode() const
+void HttpRequest::SetHeader(const char* key, const char* value)
 {
-    return _client ? esp_http_client_get_status_code(_client) : -1;
+    if (!_client)
+        return;
+
+    esp_http_client_set_header(_client, key, value);
 }
 
-int64_t HttpRequest::getContentLength() const
+int HttpRequest::GetStatusCode() const
 {
-    return _client ? esp_http_client_get_content_length(_client) : 0;
-}
-
-void HttpRequest::setHeader(const char* key, const char* value)
-{
-    if (_client) {
-        esp_http_client_set_header(_client, key, value);
-    }
-}
-
-HttpRequestStream HttpRequest::createStream()
-{
-    return HttpRequestStream(_client);
+    if (!_client)
+        return -1;
+    return esp_http_client_get_status_code(_client);
 }

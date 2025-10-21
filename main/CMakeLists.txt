@@ -3,12 +3,13 @@
 set(SOURCE_FILES_LIST
     "main.cpp"
     "app/DisplayManager/DisplayManager.cpp"
+    "app/InfluxManager/InfluxManager.cpp"
     "app/SensorManager/SensorManager.cpp"
     "app/SettingsManager/SettingsManager.cpp"
     "app/TimeManager/TimeManager.cpp"
     "app/WifiManager/WifiManager.cpp"
-    "lib/http/HttpClient.cpp"
     "lib/http/HttpRequest.cpp"
+    "lib/http/HttpRequestStream.cpp"
     "lib/influxdb/InfluxSession.cpp"
     "lib/nvs/NvsStorage.cpp"
     "lib/system/DateTime.cpp"
@@ -20,6 +21,7 @@ set(INCLUDE_DIRS_LIST
     "app"
     "lib"
     "app/DisplayManager"
+    "app/InfluxManager"
     "app/SensorManager"
     "app/SettingsManager"
     "app/TimeManager"
@@ -35,17 +37,21 @@ set(INCLUDE_DIRS_LIST
     "lib/system"
 )
 
+set(REQUIRED_COMPONENTS_LIST
+    nvs_flash
+    esp_wifi
+    esp_event
+    esp_netif
+    driver
+    esp_http_client
+    onewire_bus
+    esp_timer
+    esp-tls
+)
+
 # Register component with ESP-IDF
 idf_component_register(
     SRCS ${SOURCE_FILES_LIST}
     INCLUDE_DIRS ${INCLUDE_DIRS_LIST}
-    REQUIRES
-        nvs_flash
-        esp_wifi
-        esp_event
-        esp_netif
-        driver 
-        esp_http_client
-        onewire_bus
-        esp_timer
+    REQUIRES ${REQUIRED_COMPONENTS_LIST}
 )

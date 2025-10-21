@@ -6,6 +6,7 @@
 #include "WifiManager.h"    
 #include "SensorManager.h"
 #include "TimeManager.h"
+#include "InfluxManager.h"
 
 
 
@@ -23,7 +24,7 @@ public:
     WifiManager&     GetWifiManager() override     { return wifiManager; }
     //PowerManager&    GetPowerManager() override    { return powerManager; }
     //DataLogger&      GetDataLogger() override      { return dataLogger; }
-    //InfluxClient&    GetInfluxClient() override    { return influxClient; }
+    InfluxManager&    GetInfluxManager() override    { return influxManager; }
     TimeManager&     GetTimeManager() override     { return timeManager; }
     SettingsManager& GetSettingsManager() override { return settingsManager; }
 
@@ -33,7 +34,7 @@ private:
     WifiManager     wifiManager{*this};
     //PowerManager    powerManager{*this};
     //DataLogger      dataLogger{*this};
-    //InfluxClient    influxClient{*this};
+    InfluxManager    influxManager{*this};
     TimeManager     timeManager{*this};
     SettingsManager settingsManager{*this};
 

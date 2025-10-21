@@ -2,49 +2,34 @@
 #include "Stream.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
+#include <cstddef>
+#include <cstring>
 
-// Writes directly to ESP-IDF esp_http_client using POST body streaming
-class HttpRequestStream : public Stream {
-    esp_http_client_handle_t _client;
-    bool _closed = true;
+/// Stream wrapper around esp_http_client.
+/// Provides a write/read interface compatible with the generic Stream class.
+class HttpRequestStream : public Stream
+{
+    inline static constexpr const char* TAG = "HttpRequestStream";
 
 public:
-    HttpRequestStream() : _client(nullptr), _closed(true) {}
-    explicit HttpRequestStream(esp_http_client_handle_t client)
-        : _client(client), _closed(false) {}
+    HttpRequestStream() = default;
+    ~HttpRequestStream() override = default;
 
-    size_t write(const void* data, size_t len) override {
-        if (_closed || !_client || len == 0)
-            return 0;
+    /// Initialize the stream with an existing HTTP client handle.
+    /// Must be called after the client is opened.
+    void Init(esp_http_client_handle_t client, bool chunked = true);
 
-        // Send chunk size in hex + CRLF
-        char header[10];
-        int header_len = snprintf(header, sizeof(header), "%x\r\n", (unsigned int)len);
-        esp_http_client_write(_client, header, header_len);
+    // --- Stream interface ---
+    size_t write(const void* data, size_t len) override;
+    size_t read(void* buffer, size_t len) override;
+    void flush() override;
 
-        // Send data
-        esp_http_client_write(_client, static_cast<const char*>(data), len);
+    /// Closes the stream (writes final chunk if chunked).
+    void close();
 
-        // Send trailing CRLF
-        esp_http_client_write(_client, "\r\n", 2);
-        return len;
-    }
+    bool isOpen() const { return _client != nullptr; }
 
-    size_t read(void*, size_t) override {
-        return 0; // not used for Influx uploads
-    }
-
-    void flush() override {
-        // HTTP client doesn't need flush
-    }
-
-    void close() {
-        if (!_closed && _client) {
-            // send final zero-length chunk
-            esp_http_client_write(_client, "0\r\n\r\n", 5);
-            _closed = true;
-        }
-    }
-
-    bool isOpen() const { return !_closed; }
+private:
+    esp_http_client_handle_t _client = nullptr;
+    bool _chunked = true;
 };

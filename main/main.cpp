@@ -20,6 +20,7 @@ extern "C" void app_main(void)
     appContext.GetWifiManager().Init();
     appContext.GetTimeManager().Init();
     appContext.GetSensorManager().Init();
+    appContext.GetInfluxManager().Init();
 
     // --------------------------------------------------------
     // Main loop
@@ -28,7 +29,22 @@ extern "C" void app_main(void)
     while (true)
     {
         appContext.GetWifiManager().Loop();
-        appContext.GetSensorManager().Loop();
+        
+        if(appContext.GetTimeManager().IsTimeValid())
+        {
+            float temp;
+            if(appContext.GetSensorManager().GetTemperature(0, temp))
+            {
+                DateTime now = DateTime::Now();
+                appContext.GetInfluxManager().Write("temperature", temp, now, pdMS_TO_TICKS(5000));
+            }
+            else
+            {
+                ESP_LOGW(TAG, "No temperature sensor available");
+            }
+            
+        }
+
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

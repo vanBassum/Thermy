@@ -1,26 +1,31 @@
 #pragma once
-#include "freertos/FreeRTOS.h"
-#include "esp_http_client.h" 
 #include "HttpRequestStream.h"
-#include <cstddef>
+#include "esp_http_client.h"
+#include "esp_log.h"
+#include <cstring>
 
-class HttpRequest {
+class HttpRequest
+{
+    inline static constexpr const char* TAG = "HttpRequest";
 public:
-    HttpRequest(const char* url, esp_http_client_method_t method, TickType_t timeoutTicks);
+    HttpRequest() = default;
     ~HttpRequest();
 
-    bool open();
-    void close();
+    void Init(const char* url, esp_http_client_method_t method, TickType_t timeoutTicks);
 
-    int getStatusCode() const;
-    int64_t getContentLength() const;
+    bool Open();
+    void Close();
 
-    void setHeader(const char* key, const char* value);
-    HttpRequestStream createStream();
+    void SetHeader(const char* key, const char* value);
+    int GetStatusCode() const;
+
+    HttpRequestStream& Stream() { return _stream; }
+
+    esp_http_client_handle_t GetClientHandle() const { return _client; }
 
 private:
-    esp_http_client_handle_t _client;
-    esp_http_client_config_t _config;
-    bool _opened;
-    TickType_t _timeoutTicks;
+    esp_http_client_config_t _config{};
+    esp_http_client_handle_t _client = nullptr;
+    bool _opened = false;
+    HttpRequestStream _stream;  // persistent stream for this request
 };

@@ -6,7 +6,7 @@ class DisplayManager;
 class WifiManager;
 //class PowerManager;
 //class DataLogger;
-//class InfluxClient;
+class InfluxManager;
 class TimeManager;
 class SettingsManager;
 
@@ -18,7 +18,7 @@ public:
     virtual WifiManager&     GetWifiManager() = 0;
     //virtual PowerManager&    GetPowerManager() = 0;
     //virtual DataLogger&      GetDataLogger() = 0;
-    //virtual InfluxClient&    GetInfluxClient() = 0;
+    virtual InfluxManager&    GetInfluxManager() = 0;
     virtual TimeManager&     GetTimeManager() = 0;
     virtual SettingsManager& GetSettingsManager() = 0;
 };
