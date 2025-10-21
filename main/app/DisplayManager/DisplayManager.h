@@ -15,7 +15,7 @@ public:
         ESP_LOGI("DisplayDriver", "Clearing display");
     }
     void PrintLine(int line, const char *text) {
-        ESP_LOGI("DisplayDriver", "Line %d: %s", line, text);
+        //ESP_LOGI("DisplayDriver", "Line %d: %s", line, text);
     }
 };
 
