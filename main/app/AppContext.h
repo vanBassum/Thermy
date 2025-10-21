@@ -5,6 +5,8 @@
 #include "DisplayManager.h"
 #include "WifiManager.h"    
 #include "SensorManager.h"
+#include "TimeManager.h"
+
 
 
 class AppContext : public ServiceProvider
@@ -22,7 +24,7 @@ public:
     //PowerManager&    GetPowerManager() override    { return powerManager; }
     //DataLogger&      GetDataLogger() override      { return dataLogger; }
     //InfluxClient&    GetInfluxClient() override    { return influxClient; }
-    //TimeManager&     GetTimeManager() override     { return timeManager; }
+    TimeManager&     GetTimeManager() override     { return timeManager; }
     SettingsManager& GetSettingsManager() override { return settingsManager; }
 
 private:
@@ -32,7 +34,7 @@ private:
     //PowerManager    powerManager{*this};
     //DataLogger      dataLogger{*this};
     //InfluxClient    influxClient{*this};
-    //TimeManager     timeManager{*this};
+    TimeManager     timeManager{*this};
     SettingsManager settingsManager{*this};
 
 

@@ -7,7 +7,7 @@ class WifiManager;
 //class PowerManager;
 //class DataLogger;
 //class InfluxClient;
-//class TimeManager;
+class TimeManager;
 class SettingsManager;
 
 class ServiceProvider
@@ -19,6 +19,6 @@ public:
     //virtual PowerManager&    GetPowerManager() = 0;
     //virtual DataLogger&      GetDataLogger() = 0;
     //virtual InfluxClient&    GetInfluxClient() = 0;
-    //virtual TimeManager&     GetTimeManager() = 0;
+    virtual TimeManager&     GetTimeManager() = 0;
     virtual SettingsManager& GetSettingsManager() = 0;
 };

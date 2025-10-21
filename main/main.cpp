@@ -15,20 +15,10 @@ extern "C" void app_main(void)
     NvsStorage::InitNvsPartition("nvs");
     NvsStorage::PrintStats("nvs");
 
-    // Initialize settings
-    ESP_LOGI(TAG, "Initializing SettingsManager...");
+    // Initialize application services
     appContext.GetSettingsManager().Init();
-
-    appContext.GetSettingsManager().Access([](RootSettings &settings) {
-        ESP_LOGI(TAG, "Current settings:");
-
-        appContext.GetSettingsManager().Print(settings);
-    });
-
-    // Initialize Wi-Fi (auto-connect)
-    ESP_LOGI(TAG, "Initializing WifiManager...");
     appContext.GetWifiManager().Init();
-
+    appContext.GetTimeManager().Init();
     appContext.GetSensorManager().Init();
 
     // --------------------------------------------------------

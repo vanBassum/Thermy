@@ -1,0 +1,34 @@
+#pragma once
+#include "ServiceProvider.h"
+#include "InitGuard.h"
+#include "RecursiveMutex.h"
+#include "DateTime.h"
+
+class TimeManager
+{
+    inline static constexpr const char *TAG = "TimeManager";
+
+public:
+    explicit TimeManager(ServiceProvider &ctx);
+
+    void Init();
+    bool IsTimeValid() const;
+
+    // Accessors
+    DateTime GetSyncTime() const { return syncTime; }
+    TimeSpan GetUptimeSinceSync() const;
+    bool HasSynced() const { return synced; }
+
+private:
+    ServiceProvider &_ctx;
+    InitGuard initGuard;
+    RecursiveMutex mutex;
+    bool synced = false;
+    uint32_t lastSyncAttemptMs = 0;
+
+    // Reference point for time correlation
+    uint64_t syncUptimeUs = 0;
+    DateTime syncTime;
+
+    static void TimeSyncCallback(struct timeval *tv);
+};

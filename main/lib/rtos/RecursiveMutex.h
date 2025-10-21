@@ -3,6 +3,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "IMutex.h"
+#include "ContextLock.h"
 
 
 class RecursiveMutex : public IMutex

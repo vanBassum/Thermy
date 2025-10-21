@@ -5,6 +5,7 @@ set(SOURCE_FILES_LIST
     "app/DisplayManager/DisplayManager.cpp"
     "app/SensorManager/SensorManager.cpp"
     "app/SettingsManager/SettingsManager.cpp"
+    "app/TimeManager/TimeManager.cpp"
     "app/WifiManager/WifiManager.cpp"
     "lib/http/HttpClient.cpp"
     "lib/http/HttpRequest.cpp"
@@ -21,6 +22,7 @@ set(INCLUDE_DIRS_LIST
     "app/DisplayManager"
     "app/SensorManager"
     "app/SettingsManager"
+    "app/TimeManager"
     "app/WifiManager"
     "app/SettingsManager/Helpers"
     "lib/common"
@@ -45,4 +47,5 @@ idf_component_register(
         driver 
         esp_http_client
         onewire_bus
+        esp_timer
 )
