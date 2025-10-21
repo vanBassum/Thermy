@@ -1,4 +1,7 @@
 #pragma once
+// Fill in your own credentials here
+// Rename to secrets.h
+
 
 #define INFLUX_BASE_URL         ""
 #define INFLUX_API_KEY          ""
