@@ -39,14 +39,17 @@ extern "C" void app_main(void)
         "koole",
         "thermy");
 
-        influx
-            .Measurement("temperature", 1761047733)
-            .withTag("sensor", "outdoor")
-            .withField("value", 23.4f)
-            .withMeasurement("humidity", 1761047733)
-            .withTag("sensor", "outdoor")
-            .withField("value", 50.3f)
-            .Finish();
+    DateTime now = DateTime::Now();
+    char timeBuffer[64];
+    now.ToStringUtc(timeBuffer, sizeof(timeBuffer), DateTime::FormatIso8601);
+
+    influx.Measurement("temperature", now)
+        .withTag("sensor", "outdoor")
+        .withField("value", 23.4f)
+        .withMeasurement("humidity", now)
+        .withTag("sensor", "outdoor")
+        .withField("value", 50.3f)
+        .Finish();
 
 
     // --------------------------------------------------------

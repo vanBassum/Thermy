@@ -2,124 +2,122 @@
 #include <cstdio>
 #include <cstring>
 
-// --- Primitive writers ---
-
-void InfluxStreamWriter::writeInt8(std::int8_t value)
+InfluxStreamWriter::InfluxStreamWriter(Stream &stream, const char *name, const DateTime &timestamp)
+    : _stream(stream),
+      _hasTags(false),
+      _hasFields(false),
+      _timestamp(timestamp)
 {
-    char buf[8];
-    int len = std::snprintf(buf, sizeof(buf), "%d", static_cast<int>(value));
-    _stream.write(buf, static_cast<std::size_t>(len));
+    // Start measurement
+    writeEscaped(name);
 }
 
-void InfluxStreamWriter::writeInt16(std::int16_t value)
+void InfluxStreamWriter::writeEscaped(const char* s)
 {
-    char buf[12];
-    int len = std::snprintf(buf, sizeof(buf), "%d", static_cast<int>(value));
-    _stream.write(buf, static_cast<std::size_t>(len));
+    // Very simple escape (Influx requires commas and spaces to be escaped)
+    for (const char* p = s; *p; ++p) {
+        if (*p == ' ' || *p == ',' || *p == '=')
+            _stream.write("\\", 1);
+        _stream.write(p, 1);
+    }
 }
 
-void InfluxStreamWriter::writeInt32(std::int32_t value)
+void InfluxStreamWriter::writeKeyValue(const char* key, const char* value)
 {
-    char buf[16];
-    int len = std::snprintf(buf, sizeof(buf), "%ld", static_cast<long>(value));
-    _stream.write(buf, static_cast<std::size_t>(len));
+    writeEscaped(key);
+    _stream.write("=", 1);
+    _stream.write(value, std::strlen(value));
 }
 
-void InfluxStreamWriter::writeInt64(std::int64_t value)
+
+
+// --- Tags ---
+InfluxStreamWriter& InfluxStreamWriter::withTag(const char* key, const char* value)
 {
-    char buf[24];
-    int len = std::snprintf(buf, sizeof(buf), "%lld", static_cast<long long>(value));
-    _stream.write(buf, static_cast<std::size_t>(len));
+    _stream.write(_hasTags ? "," : ",", 1);
+    writeKeyValue(key, value);
+    _hasTags = true;
+    return *this;
 }
 
-void InfluxStreamWriter::writeUInt8(std::uint8_t value)
-{
-    char buf[8];
-    int len = std::snprintf(buf, sizeof(buf), "%u", static_cast<unsigned int>(value));
-    _stream.write(buf, static_cast<std::size_t>(len));
+#define DEFINE_TAG_NUMERIC(type) \
+InfluxStreamWriter& InfluxStreamWriter::withTag(const char* key, type value) { \
+    char buf[32]; snprintf(buf, sizeof(buf), "%lld", (long long)value); \
+    return withTag(key, buf); \
 }
 
-void InfluxStreamWriter::writeUInt16(std::uint16_t value)
+DEFINE_TAG_NUMERIC(std::int8_t)
+DEFINE_TAG_NUMERIC(std::int16_t)
+DEFINE_TAG_NUMERIC(std::int32_t)
+DEFINE_TAG_NUMERIC(std::int64_t)
+DEFINE_TAG_NUMERIC(std::uint8_t)
+DEFINE_TAG_NUMERIC(std::uint16_t)
+DEFINE_TAG_NUMERIC(std::uint32_t)
+DEFINE_TAG_NUMERIC(std::uint64_t)
+
+// --- Fields ---
+InfluxStreamWriter& InfluxStreamWriter::withField(const char* key, const char* value)
 {
-    char buf[12];
-    int len = std::snprintf(buf, sizeof(buf), "%u", static_cast<unsigned int>(value));
-    _stream.write(buf, static_cast<std::size_t>(len));
+    if (!_hasFields) {
+        _stream.write(" ", 1);
+        _hasFields = true;
+    } else {
+        _stream.write(",", 1);
+    }
+
+    writeEscaped(key);
+    _stream.write("=", 1);
+
+    // Quote strings
+    _stream.write("\"", 1);
+    _stream.write(value, std::strlen(value));
+    _stream.write("\"", 1);
+    return *this;
 }
 
-void InfluxStreamWriter::writeUInt32(std::uint32_t value)
-{
-    char buf[16];
-    int len = std::snprintf(buf, sizeof(buf), "%lu", static_cast<unsigned long>(value));
-    _stream.write(buf, static_cast<std::size_t>(len));
+#define DEFINE_FIELD_NUMERIC(type, fmt) \
+InfluxStreamWriter& InfluxStreamWriter::withField(const char* key, type value) { \
+    if (!_hasFields) { _stream.write(" ", 1); _hasFields = true; } else { _stream.write(",", 1); } \
+    writeEscaped(key); \
+    char buf[32]; snprintf(buf, sizeof(buf), fmt, value); \
+    _stream.write("=", 1); \
+    _stream.write(buf, std::strlen(buf)); \
+    return *this; \
 }
 
-void InfluxStreamWriter::writeUInt64(std::uint64_t value)
+DEFINE_FIELD_NUMERIC(std::int8_t, "%d")
+DEFINE_FIELD_NUMERIC(std::int16_t, "%d")
+DEFINE_FIELD_NUMERIC(std::int32_t, "%ld")
+DEFINE_FIELD_NUMERIC(std::int64_t, "%lld")
+DEFINE_FIELD_NUMERIC(std::uint8_t, "%u")
+DEFINE_FIELD_NUMERIC(std::uint16_t, "%u")
+DEFINE_FIELD_NUMERIC(std::uint32_t, "%lu")
+DEFINE_FIELD_NUMERIC(std::uint64_t, "%llu")
+DEFINE_FIELD_NUMERIC(float, "%g")
+DEFINE_FIELD_NUMERIC(double, "%g")
+
+InfluxStreamWriter& InfluxStreamWriter::withField(const char* key, bool value)
 {
-    char buf[24];
-    int len = std::snprintf(buf, sizeof(buf), "%llu", static_cast<unsigned long long>(value));
-    _stream.write(buf, static_cast<std::size_t>(len));
+    return withField(key, value ? "true" : "false");
 }
 
-void InfluxStreamWriter::writeFloat(float value)
+// --- New measurement ---
+InfluxStreamWriter& InfluxStreamWriter::withMeasurement(const char* name, const DateTime& timestamp)
 {
-    char buf[24];
-    int len = std::snprintf(buf, sizeof(buf), "%g", static_cast<double>(value));
-    _stream.write(buf, static_cast<std::size_t>(len));
+    // Finish previous line
+    Finish();
+    _hasTags = false;
+    _hasFields = false;
+    _timestamp = timestamp;
+    writeEscaped(name);
+    return *this;
 }
 
-void InfluxStreamWriter::writeDouble(double value)
+// --- Finish ---
+void InfluxStreamWriter::Finish()
 {
     char buf[32];
-    int len = std::snprintf(buf, sizeof(buf), "%g", value);
-    _stream.write(buf, static_cast<std::size_t>(len));
+    int len = snprintf(buf, sizeof(buf), " %lld\n", _timestamp.UtcSeconds());
+    _stream.write(buf, len);
 }
 
-void InfluxStreamWriter::writeBool(bool value)
-{
-    const char* text = value ? "true" : "false";
-    _stream.write(text, std::strlen(text));
-}
-
-// --- String writing ---
-void InfluxStreamWriter::writeString(const char* s)
-{
-    if (!s) return;
-    _stream.write(s, std::strlen(s));
-}
-
-// --- Escaping helpers ---
-// For measurement/tag/field keys: escape ' ', ',', and '=' with '\'
-void InfluxStreamWriter::writeEscapedKey(const char* key)
-{
-    if (!key) return;
-    for (const char* p = key; *p; ++p)
-    {
-        if (*p == ' ' || *p == ',' || *p == '=')
-        {
-            const char backslash = '\\';
-            _stream.write(&backslash, 1);
-        }
-        _stream.write(p, 1);
-    }
-}
-
-// For string field values: escape '"' and '\' with '\'
-void InfluxStreamWriter::writeEscapedValue(const char* value)
-{
-    if (!value) return;
-
-    const char quote = '"';
-    _stream.write(&quote, 1);
-
-    for (const char* p = value; *p; ++p)
-    {
-        if (*p == '"' || *p == '\\')
-        {
-            const char backslash = '\\';
-            _stream.write(&backslash, 1);
-        }
-        _stream.write(p, 1);
-    }
-
-    _stream.write(&quote, 1);
-}

@@ -4,13 +4,13 @@
 #include "esp_log.h"
 
 // Writes directly to ESP-IDF esp_http_client using POST body streaming
-class RequestStream : public Stream {
+class HttpRequestStream : public Stream {
     esp_http_client_handle_t _client;
     bool _closed = true;
 
 public:
-    RequestStream() : _client(nullptr), _closed(true) {}
-    explicit RequestStream(esp_http_client_handle_t client)
+    HttpRequestStream() : _client(nullptr), _closed(true) {}
+    explicit HttpRequestStream(esp_http_client_handle_t client)
         : _client(client), _closed(false) {}
 
     size_t write(const void* data, size_t len) override {

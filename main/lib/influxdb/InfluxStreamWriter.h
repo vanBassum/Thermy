@@ -1,34 +1,50 @@
 #pragma once
 #include <cstdint>
 #include "Stream.h"
+#include "DateTime.h"
 
-// Responsible for writing primitive types and escaping text for Influx line protocol.
+// Writes Influx Line Protocol data to a generic Stream.
 class InfluxStreamWriter {
 public:
-    explicit InfluxStreamWriter(Stream& s) : _stream(s) {}
+    InfluxStreamWriter(Stream& stream, const char* name, const DateTime& timestamp);
 
-    // --- Primitive writers ---
-    void writeInt8(std::int8_t value);
-    void writeInt16(std::int16_t value);
-    void writeInt32(std::int32_t value);
-    void writeInt64(std::int64_t value);
+    // --- Tag writers ---
+    InfluxStreamWriter& withTag(const char* key, const char* value);
+    InfluxStreamWriter& withTag(const char* key, std::int8_t value);
+    InfluxStreamWriter& withTag(const char* key, std::int16_t value);
+    InfluxStreamWriter& withTag(const char* key, std::int32_t value);
+    InfluxStreamWriter& withTag(const char* key, std::int64_t value);
+    InfluxStreamWriter& withTag(const char* key, std::uint8_t value);
+    InfluxStreamWriter& withTag(const char* key, std::uint16_t value);
+    InfluxStreamWriter& withTag(const char* key, std::uint32_t value);
+    InfluxStreamWriter& withTag(const char* key, std::uint64_t value);
 
-    void writeUInt8(std::uint8_t value);
-    void writeUInt16(std::uint16_t value);
-    void writeUInt32(std::uint32_t value);
-    void writeUInt64(std::uint64_t value);
+    // --- Field writers ---
+    InfluxStreamWriter& withField(const char* key, const char* value);
+    InfluxStreamWriter& withField(const char* key, std::int8_t value);
+    InfluxStreamWriter& withField(const char* key, std::int16_t value);
+    InfluxStreamWriter& withField(const char* key, std::int32_t value);
+    InfluxStreamWriter& withField(const char* key, std::int64_t value);
+    InfluxStreamWriter& withField(const char* key, std::uint8_t value);
+    InfluxStreamWriter& withField(const char* key, std::uint16_t value);
+    InfluxStreamWriter& withField(const char* key, std::uint32_t value);
+    InfluxStreamWriter& withField(const char* key, std::uint64_t value);
+    InfluxStreamWriter& withField(const char* key, float value);
+    InfluxStreamWriter& withField(const char* key, double value);
+    InfluxStreamWriter& withField(const char* key, bool value);
 
-    void writeFloat(float value);
-    void writeDouble(double value);
-    void writeBool(bool value);
+    // --- Start a new measurement (same stream) ---
+    InfluxStreamWriter& withMeasurement(const char* name, const DateTime& timestamp);
 
-    // --- Raw string writer ---
-    void writeString(const char* s);
-
-    // --- Escaping helpers (Influx line protocol) ---
-    void writeEscapedKey(const char* key);
-    void writeEscapedValue(const char* value);
+    // --- Finish writing this batch ---
+    void Finish();
 
 private:
     Stream& _stream;
+    bool _hasTags;
+    bool _hasFields;
+    DateTime _timestamp;
+
+    void writeEscaped(const char* s);
+    void writeKeyValue(const char* key, const char* value);
 };
