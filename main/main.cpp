@@ -33,8 +33,7 @@ extern "C" void app_main(void)
     appContext.GetDisplayManager().Init();
 
 
-    InfluxClient influx(
-        "http://192.168.50.96:8086/api/v2/write",
+    InfluxClient influx("http://192.168.50.96:8086/api/v2/write",
         "TIPK7M91CfTF7mgC0BsV26M-VVXVn2RgQiA8yOJxUNAwp-G-a40MkOP4rP1c4ke5RPYMP5F9SPCEC2pomwLfJA==",
         "koole",
         "thermy");
@@ -42,15 +41,15 @@ extern "C" void app_main(void)
     DateTime now = DateTime::Now();
     char timeBuffer[64];
     now.ToStringUtc(timeBuffer, sizeof(timeBuffer), DateTime::FormatIso8601);
+    ESP_LOGI(TAG, "Current UTC time: %s", timeBuffer);
+    now.ToStringLocal(timeBuffer, sizeof(timeBuffer), DateTime::FormatIso8601);
+    ESP_LOGI(TAG, "Current Local time: %s", timeBuffer);
 
-    influx.Measurement("temperature", now)
-        .withTag("sensor", "outdoor")
-        .withField("value", 23.4f)
-        .withMeasurement("humidity", now)
-        .withTag("sensor", "outdoor")
-        .withField("value", 50.3f)
+
+    influx.Measurement("temperature", now, pdMS_TO_TICKS(5000))
+        .withTag("sensor", "indoor")
+        .withField("value", 21.3f)
         .Finish();
-
 
     // --------------------------------------------------------
     // Main loop
