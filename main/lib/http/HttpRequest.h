@@ -23,6 +23,8 @@ public:
 
     esp_http_client_handle_t GetClientHandle() const { return _client; }
 
+    int Perform();
+
 private:
     esp_http_client_config_t _config{};
     esp_http_client_handle_t _client = nullptr;

@@ -74,3 +74,31 @@ int HttpRequest::GetStatusCode() const
         return -1;
     return esp_http_client_get_status_code(_client);
 }
+
+int HttpRequest::Perform()
+{
+    if (!_opened || !_client)
+        return -1;
+
+    esp_err_t err = esp_http_client_perform(_client);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "HTTP perform failed: %s", esp_err_to_name(err));
+        return -1;
+    }
+
+    int status = esp_http_client_get_status_code(_client);
+    ESP_LOGI(TAG, "HTTP status: %d", status);
+
+    if (status >= 400) {
+        char buf[256];
+        int n = esp_http_client_read(_client, buf, sizeof(buf) - 1);
+        if (n > 0) {
+            buf[n] = '\0';
+            ESP_LOGW(TAG, "HTTP error response: %s", buf);
+        } else {
+            ESP_LOGW(TAG, "HTTP error: no response body");
+        }
+    }
+
+    return status;
+}

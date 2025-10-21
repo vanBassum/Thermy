@@ -1,3 +1,4 @@
 ﻿build
 .vscode/settings.json
 managed_components
+main/secrets.h

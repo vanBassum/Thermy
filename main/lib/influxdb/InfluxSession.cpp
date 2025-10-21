@@ -130,35 +130,14 @@ bool InfluxSession::Finish()
     writer.writeInt64(_timestamp.UtcSeconds());
     writer.writeChar('\n');
 
-    // send final zero-length chunk (HttpRequestStream::close handles this)
+    // Send final zero-length chunk and close the write side
     stream.close();
 
-    // Ensure the request is actually performed
-    esp_http_client_handle_t h = _req.GetClientHandle();   // add this accessor
-    esp_err_t perr = (h ? esp_http_client_perform(h) : ESP_FAIL);
-    if (perr != ESP_OK) {
-        ESP_LOGE(TAG, "HTTP perform error: %s", esp_err_to_name(perr));
-        // Don’t attempt to read if perform failed; status will be -1 or undefined
-    }
-
-    int status = _req.GetStatusCode();
-    ESP_LOGI(TAG, "Influx write finished (timestamp=%lld, status=%d)",
-             static_cast<long long>(_timestamp.UtcSeconds()), status);
-
-    // If we got a response, try to read body for diagnostics (optional)
-    if (perr == ESP_OK && h && status >= 400) {
-        char buf[256];
-        int n = esp_http_client_read(h, buf, sizeof(buf) - 1);
-        if (n > 0) {
-            buf[n] = '\0';
-            ESP_LOGE(TAG, "InfluxDB error response: %s", buf);
-        } else {
-            ESP_LOGE(TAG, "InfluxDB returned status %d, but no response body", status);
-        }
-    }
-
+    int status = _req.Perform();
+    _initGuard.SetNotReady();
     return (status >= 200 && status < 300);
 }
+
 
 void InfluxSession::WriteEscaped(const char* text)
 {

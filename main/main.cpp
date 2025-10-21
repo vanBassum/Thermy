@@ -10,6 +10,8 @@ AppContext appContext;
 
 extern "C" void app_main(void)
 {
+    esp_log_level_set("esp-x509-crt-bundle", ESP_LOG_WARN);
+    
     // Initialize NVS
     ESP_LOGI(TAG, "Initializing NVS...");
     NvsStorage::InitNvsPartition("nvs");
