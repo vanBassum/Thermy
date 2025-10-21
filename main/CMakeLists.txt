@@ -5,6 +5,9 @@ set(SOURCE_FILES_LIST
     "app/DisplayManager/DisplayManager.cpp"
     "app/SettingsManager/SettingsManager.cpp"
     "app/WifiManager/WifiManager.cpp"
+    "lib/influxdb/InfluxClient.cpp"
+    "lib/influxdb/InfluxMeasurementStreamWriter.cpp"
+    "lib/influxdb/InfluxStreamWriter.cpp"
     "lib/nvs/NvsStorage.cpp"
     "lib/system/DateTime.cpp"
     "lib/system/TimeSpan.cpp"
@@ -19,9 +22,12 @@ set(INCLUDE_DIRS_LIST
     "app/WifiManager"
     "app/SettingsManager/Helpers"
     "lib/common"
+    "lib/http"
+    "lib/influxdb"
     "lib/nvs"
     "lib/rtos"
     "lib/settings"
+    "lib/stream"
     "lib/system"
 )
 
@@ -35,4 +41,5 @@ idf_component_register(
         esp_event
         esp_netif
         driver 
+        esp_http_client
 )
