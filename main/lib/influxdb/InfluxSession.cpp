@@ -5,6 +5,9 @@
 
 static const char* TAG = "InfluxSession";
 
+// -----------------------------------------------------------------------------
+// Constructor
+// -----------------------------------------------------------------------------
 InfluxSession::InfluxSession(const char* url,
                              const char* apiKey,
                              const char* measurementName,
@@ -12,92 +15,164 @@ InfluxSession::InfluxSession(const char* url,
                              TickType_t timeout)
     : _req(nullptr, HTTP_METHOD_POST, timeout),
       _stream(),
-      _valid(false),
-      _hasFields(false)
+      _writer(_stream),
+      _timestamp(timestamp),
+      _hasFields(false),
+      _open(false)
 {
-    ESP_LOGI(TAG, "Starting session: %s", url);
-
     HttpClient http;
     _req = http.createRequest(url, HTTP_METHOD_POST, timeout);
+
     _req.setHeader("Content-Type", "text/plain; charset=utf-8");
     _req.setHeader("Transfer-Encoding", "chunked");
 
     if (apiKey && std::strlen(apiKey) > 0) {
-        char auth[128];
-        std::snprintf(auth, sizeof(auth), "Token %s", apiKey);
-        _req.setHeader("Authorization", auth);
+        char authHeader[128];
+        std::snprintf(authHeader, sizeof(authHeader), "Token %s", apiKey);
+        _req.setHeader("Authorization", authHeader);
     }
 
     if (!_req.open()) {
-        ESP_LOGE(TAG, "Failed to open HTTP connection");
+        ESP_LOGE(TAG, "Failed to open HTTP connection for Influx write");
         return;
     }
 
     _stream = _req.createStream();
-    _valid = true;
-    _timestamp = timestamp;
 
-    // Write measurement header
-    _stream.write(measurementName, std::strlen(measurementName));
+    // Start first measurement line
+    _writer.writeString(measurementName);
+    _writer.writeChar(' ');
+
+    _open = true;
 }
 
-InfluxSession::~InfluxSession() {
-    Finish();
+// -----------------------------------------------------------------------------
+// Destructor
+// -----------------------------------------------------------------------------
+InfluxSession::~InfluxSession()
+{
+    if (_open) {
+        Finish();
+    }
 }
 
+// -----------------------------------------------------------------------------
+// Tags
+// -----------------------------------------------------------------------------
 InfluxSession& InfluxSession::withTag(const char* key, const char* value)
 {
-    if (!_valid) return *this;
-    _stream.write(",", 1);
-    _stream.write(key, std::strlen(key));
-    _stream.write("=", 1);
-    _stream.write(value, std::strlen(value));
+    if (!_open) return *this;
+    _writer.writeChar(',');
+    _writer.writeFormat("%s=%s", key, value);
     return *this;
 }
 
+// -----------------------------------------------------------------------------
+// Fields
+// -----------------------------------------------------------------------------
 InfluxSession& InfluxSession::withField(const char* key, float value)
 {
-    if (!_valid) return *this;
+    if (!_open) return *this;
     if (!_hasFields) {
-        _stream.write(" ", 1);
+        _writer.writeChar(' ');
         _hasFields = true;
     } else {
-        _stream.write(",", 1);
+        _writer.writeChar(',');
     }
-
-    char buf[32];
-    int len = std::snprintf(buf, sizeof(buf), "%s=%f", key, value);
-    _stream.write(buf, len);
+    _writer.writeFormat("%s=", key);
+    _writer.writeFloat(value);
     return *this;
 }
 
+InfluxSession& InfluxSession::withField(const char* key, double value)
+{
+    if (!_open) return *this;
+    if (!_hasFields) {
+        _writer.writeChar(' ');
+        _hasFields = true;
+    } else {
+        _writer.writeChar(',');
+    }
+    _writer.writeFormat("%s=", key);
+    _writer.writeFloat(static_cast<float>(value));
+    return *this;
+}
+
+InfluxSession& InfluxSession::withField(const char* key, int32_t value)
+{
+    if (!_open) return *this;
+    if (!_hasFields) {
+        _writer.writeChar(' ');
+        _hasFields = true;
+    } else {
+        _writer.writeChar(',');
+    }
+    _writer.writeFormat("%s=%di", key, value);  // int fields use 'i' suffix
+    return *this;
+}
+
+InfluxSession& InfluxSession::withField(const char* key, bool value)
+{
+    if (!_open) return *this;
+    if (!_hasFields) {
+        _writer.writeChar(' ');
+        _hasFields = true;
+    } else {
+        _writer.writeChar(',');
+    }
+    _writer.writeFormat("%s=%s", key, value ? "true" : "false");
+    return *this;
+}
+
+// -----------------------------------------------------------------------------
+// New measurement
+// -----------------------------------------------------------------------------
 InfluxSession& InfluxSession::withMeasurement(const char* name, const DateTime& timestamp)
 {
-    if (!_valid) return *this;
+    if (!_open) return *this;
 
-    // End current line
-    char buf[32];
-    int len = std::snprintf(buf, sizeof(buf), " %lld\n", _timestamp.UtcSeconds());
-    _stream.write(buf, len);
+    // End previous line with timestamp
+    _writer.writeChar(' ');
+    _writer.writeInt64(_timestamp.UtcSeconds());
+    _writer.writeChar('\n');
 
     // Start new measurement
-    _stream.write(name, std::strlen(name));
+    _writer.writeString(name);
+    _writer.writeChar(' ');
+
     _timestamp = timestamp;
     _hasFields = false;
     return *this;
 }
 
-void InfluxSession::Finish()
+// -----------------------------------------------------------------------------
+// Finish
+// -----------------------------------------------------------------------------
+bool InfluxSession::Finish()
 {
-    if (!_valid) return;
+    if (!_open) return false;
 
-    char buf[32];
-    int len = std::snprintf(buf, sizeof(buf), " %lld\n", _timestamp.UtcSeconds());
-    _stream.write(buf, len);
+    // End current line with timestamp
+    _writer.writeChar(' ');
+    _writer.writeInt64(_timestamp.UtcSeconds());
+    _writer.writeChar('\n');
 
+    _stream.flush();
     _stream.close();
-    _req.close();
-    _valid = false;
 
-    ESP_LOGI(TAG, "Session finished");
+    // Check server response
+    int status = _req.getStatusCode();
+    ESP_LOGI(TAG, "Influx write HTTP %d", status);
+
+    _req.close();
+    _open = false;
+
+    bool ok = (status == 204);
+    if (ok) {
+        ESP_LOGI(TAG, "Influx write acknowledged");
+    } else {
+        ESP_LOGW(TAG, "Influx write failed with HTTP %d", status);
+    }
+
+    return ok;
 }

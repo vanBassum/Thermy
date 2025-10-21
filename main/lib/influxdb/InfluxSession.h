@@ -3,6 +3,7 @@
 #include "HttpRequest.h"
 #include "HttpRequestStream.h"
 #include "DateTime.h"
+#include "StringWriter.h"
 
 class InfluxSession {
 public:
@@ -14,24 +15,21 @@ public:
 
     ~InfluxSession();
 
-    bool isValid() const { return _valid; }
-
-    // --- Tags ---
     InfluxSession& withTag(const char* key, const char* value);
-
-    // --- Fields ---
     InfluxSession& withField(const char* key, float value);
+    InfluxSession& withField(const char* key, double value);
+    InfluxSession& withField(const char* key, int32_t value);
+    InfluxSession& withField(const char* key, bool value);
 
-    // --- New measurement ---
     InfluxSession& withMeasurement(const char* name, const DateTime& timestamp);
 
-    // --- Finish ---
-    void Finish();
+    bool Finish();
 
 private:
     HttpRequest _req;
     HttpRequestStream _stream;
+    StringWriter _writer; 
     DateTime _timestamp;
-    bool _valid;
     bool _hasFields;
+    bool _open;
 };

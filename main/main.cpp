@@ -39,6 +39,7 @@ extern "C" void app_main(void)
         "thermy");
 
     DateTime now = DateTime::Now();
+    DateTime::FromStringLocal(now, "2025-10-21T16:18", DateTime::FormatIso8601);
     char timeBuffer[64];
     now.ToStringUtc(timeBuffer, sizeof(timeBuffer), DateTime::FormatIso8601);
     ESP_LOGI(TAG, "Current UTC time: %s", timeBuffer);
