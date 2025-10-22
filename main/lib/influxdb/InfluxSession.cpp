@@ -1,7 +1,8 @@
 #include "InfluxSession.h"
 #include <cassert>
 
-enum class WritePhase {
+enum class WritePhase
+{
     None,
     Measurement,
     Tags,
@@ -24,14 +25,16 @@ void InfluxSession::Init(const char *url, const char *apiKey, TickType_t timeout
 
     _req.Init(url, HTTP_METHOD_POST, timeout);
 
-    if (apiKey && *apiKey) {
+    if (apiKey && *apiKey)
+    {
         char authHeader[160];
         snprintf(authHeader, sizeof(authHeader), "Token %s", apiKey);
         _req.SetHeader("Authorization", authHeader);
     }
     _req.SetHeader("Content-Type", "text/plain; charset=utf-8");
 
-    if (!_req.Open()) {
+    if (!_req.Open())
+    {
         ESP_LOGE(TAG, "Failed to open HTTP request");
         return;
     }
@@ -40,17 +43,21 @@ void InfluxSession::Init(const char *url, const char *apiKey, TickType_t timeout
     _phase = WritePhase::None;
 }
 
-InfluxSession& InfluxSession::withMeasurement(const char* name, const DateTime& timestamp)
+InfluxSession &InfluxSession::withMeasurement(const char *name, const DateTime &timestamp)
 {
     assert(_initGuard.IsReady());
     assert(name);
 
-    auto& stream = _req.GetStream();
+    auto &stream = _req.GetStream();
     StringWriter writer(stream);
 
     // If this isn't the first measurement, end the previous line
     if (_phase != WritePhase::None)
+    {
+        writer.writeChar(' ');
+        writer.writeInt64(_timestamp.UtcSeconds());
         writer.writeChar('\n');
+    }
 
     writer.writeString(name);
 
@@ -59,13 +66,13 @@ InfluxSession& InfluxSession::withMeasurement(const char* name, const DateTime& 
     return *this;
 }
 
-InfluxSession& InfluxSession::withTag(const char* key, const char* value)
+InfluxSession &InfluxSession::withTag(const char *key, const char *value)
 {
     assert(_initGuard.IsReady());
     assert(key && value);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags);
 
-    auto& stream = _req.GetStream();
+    auto &stream = _req.GetStream();
     StringWriter writer(stream);
 
     writer.writeChar(',');
@@ -77,13 +84,13 @@ InfluxSession& InfluxSession::withTag(const char* key, const char* value)
     return *this;
 }
 
-InfluxSession& InfluxSession::withField(const char* key, float value)
+InfluxSession &InfluxSession::withField(const char *key, float value)
 {
     assert(_initGuard.IsReady());
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
-    auto& stream = _req.GetStream();
+    auto &stream = _req.GetStream();
     StringWriter writer(stream);
 
     if (_phase != WritePhase::Fields)
@@ -100,13 +107,13 @@ InfluxSession& InfluxSession::withField(const char* key, float value)
     return *this;
 }
 
-InfluxSession& InfluxSession::withField(const char* key, int32_t value)
+InfluxSession &InfluxSession::withField(const char *key, int32_t value)
 {
     assert(_initGuard.IsReady());
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
-    auto& stream = _req.GetStream();
+    auto &stream = _req.GetStream();
     StringWriter writer(stream);
 
     if (_phase != WritePhase::Fields)
@@ -121,13 +128,13 @@ InfluxSession& InfluxSession::withField(const char* key, int32_t value)
     return *this;
 }
 
-InfluxSession& InfluxSession::withField(const char* key, bool value)
+InfluxSession &InfluxSession::withField(const char *key, bool value)
 {
     assert(_initGuard.IsReady());
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
-    auto& stream = _req.GetStream();
+    auto &stream = _req.GetStream();
     StringWriter writer(stream);
 
     if (_phase != WritePhase::Fields)
@@ -146,7 +153,7 @@ bool InfluxSession::Finish()
     if (!_initGuard.IsReady())
         return false;
 
-    auto& stream = _req.GetStream();
+    auto &stream = _req.GetStream();
     StringWriter writer(stream);
 
     // Append timestamp (in seconds)
@@ -162,12 +169,12 @@ bool InfluxSession::Finish()
     return (status >= 200 && status < 300);
 }
 
-void InfluxSession::WriteEscaped(const char* text)
+void InfluxSession::WriteEscaped(const char *text)
 {
     assert(text);
 
-    auto& stream = _req.GetStream();
-    for (const char* p = text; *p; ++p)
+    auto &stream = _req.GetStream();
+    for (const char *p = text; *p; ++p)
     {
         if (*p == ' ' || *p == ',' || *p == '=')
             stream.write("\\", 1);

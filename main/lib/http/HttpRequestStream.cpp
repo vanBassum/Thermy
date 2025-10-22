@@ -20,6 +20,9 @@ size_t HttpRequestStream::write(const void* data, size_t len)
         int header_len = snprintf(header, sizeof(header), "%x\r\n", (unsigned int)len);
         esp_http_client_write(_client, header, header_len);
 
+        
+        //printf("%.*s", (int)len, (const char*)data);
+
         // --- Send actual data
         esp_http_client_write(_client, static_cast<const char*>(data), len);
 
