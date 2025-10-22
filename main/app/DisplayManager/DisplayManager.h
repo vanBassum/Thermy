@@ -7,6 +7,7 @@
 #include "SensorManager.h"
 #include "DisplayDriver.h"
 #include "WifiManager.h"
+#include "TimeManager.h"
 
 
 class DisplayManager
@@ -23,11 +24,13 @@ public:
 private:
     SensorManager& sensorManager;
     WifiManager& wifiManager;
+    TimeManager& timeManager;
     InitGuard initGuard;
     Mutex mutex;
     DisplayDriver driver;
     Milliseconds lastDisplayUpdate;
 
-    void DrawHeader(SSD1306 &display);
+    void DrawIcons(SSD1306 &display);
     void DrawSensorTemperatures(SSD1306 &display);
 };
+

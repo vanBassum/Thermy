@@ -6,6 +6,7 @@
 DisplayManager::DisplayManager(ServiceProvider &ctx)
     : sensorManager(ctx.GetSensorManager())
     , wifiManager(ctx.GetWifiManager())
+    , timeManager(ctx.GetTimeManager())
 {
 }
 
@@ -32,62 +33,55 @@ void DisplayManager::Tick(TickContext &ctx)
     SSD1306 &display = driver.GetDisplay();
     display.fill(0);
 
-    DrawHeader(display);
+    DrawIcons(display);
     DrawSensorTemperatures(display);
 
     display.show();
 }
 
-void DisplayManager::DrawHeader(SSD1306 &display)
+void DisplayManager::DrawIcons(SSD1306 &display)
 {
     TextStyle iconStyle(&Font8x8_Symbols, 1, true);
-    TextStyle timeStyle(&Font5x7, 1, true);
 
-    // --- Draw WiFi Icon (top-left)
+    // Left column of icons
+    const int iconX = 72-10;
+    int y = 0;
+
+    // --- WiFi icon (top)
     char wifiChar = wifiManager.IsConnected() ? (char)SymbolIcon::Wifi : (char)SymbolIcon::Empty;
-    display.drawChar(0, 0, wifiChar, iconStyle);
+    display.drawChar(iconX, y, wifiChar, iconStyle);
 
-    // --- Draw time (top-right)
-    char timeStr[9];
-    DateTime::Now().ToStringLocal(timeStr, sizeof(timeStr), "%H:%M:%S");
+    // --- NTP synced icon
+    char ntpChar = timeManager.HasSynced() ? (char)SymbolIcon::NtpSynced : (char)SymbolIcon::Empty;
+    display.drawChar(iconX, y+=10, ntpChar, iconStyle);
 
-    int textWidth = (Font5x7.width + 1) * strlen(timeStr);
-    int x = display.getWidth() - textWidth;
-    display.drawText(x, 0, timeStr, timeStyle);
 }
 
 void DisplayManager::DrawSensorTemperatures(SSD1306 &display)
 {
     const int sensorCount = sensorManager.GetSensorCount();
-
     if (sensorCount <= 0)
         return;
 
-    uint8_t textSize = 1;
-    int lineHeight = 10;
-
-    if (sensorCount == 1)
-    {
-        textSize = 3;
-        lineHeight = 24;
-    }
-    else if (sensorCount == 2)
-    {
-        textSize = 2;
-        lineHeight = 16;
-    }
+    const uint8_t textSize = sensorCount <= 2 ? 2 : 1;
+    const int lineHeight = sensorCount <= 2 ? 18 : 9;
+    const int baseY = 0;
+    const int textX = 0;
 
     TextStyle tempStyle(&Font5x7, textSize, true);
-    const int baseY = 12; // below header
 
     for (int i = 0; i < sensorCount; ++i)
     {
         float tempC = sensorManager.GetTemperature(i);
 
         char line[16];
-        snprintf(line, sizeof(line), "%.1f°C", tempC);
+        if (tempC >= 100.0f)
+            snprintf(line, sizeof(line), "%.1f", tempC);
+        else
+            snprintf(line, sizeof(line), "%.2f", tempC);
 
         int y = baseY + i * lineHeight;
-        display.drawText(0, y, line, tempStyle);
+        display.drawText(textX, y, line, tempStyle);
     }
 }
+
