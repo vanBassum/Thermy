@@ -2,24 +2,37 @@
 #include <stdint.h>
 #include <esp_timer.h>
 
+typedef uint64_t Milliseconds;
+
+// ---- Factory helpers ----
+inline static constexpr Milliseconds Millis(uint64_t val)
+{
+    return val;
+}
+
+static inline Milliseconds NowMs()
+{
+    return esp_timer_get_time() / 1000ULL;
+}
+
 class TickContext
 {
 public:
-    explicit TickContext(uint64_t nowMs, uint32_t defaultTickIntervalMs)
-        : _timeSinceBootMs(nowMs),
+    explicit TickContext(Milliseconds now, Milliseconds defaultTickIntervalMs)
+        : _timeSinceBootMs(now),
           _tickIntervalMs(defaultTickIntervalMs)
     {
     }
 
     // ---- Accessors ----
-    inline uint64_t TimeSinceBootMs() const { return _timeSinceBootMs; }
-    inline uint32_t TickIntervalMs() const { return _tickIntervalMs; }
+    inline Milliseconds TimeSinceBoot() const { return _timeSinceBootMs; }
+    inline Milliseconds TickInterval() const { return _tickIntervalMs; }
     inline bool PreventSleepRequested() const { return _preventSleep; }
 
-    // ---- Utility: Safe time checks ----
-    inline bool ElapsedAndReset(uint64_t &timerVar, uint64_t intervalMs) const
+    // ---- Safe time checks ----
+    inline bool ElapsedAndReset(Milliseconds &timerVar, Milliseconds interval) const
     {
-        if ((uint64_t)(_timeSinceBootMs - timerVar) >= intervalMs)
+        if ((_timeSinceBootMs - timerVar) >= interval)
         {
             timerVar = _timeSinceBootMs;
             return true;
@@ -27,29 +40,25 @@ public:
         return false;
     }
 
-    inline bool HasElapsed(uint64_t startTime, uint64_t intervalMs) const
+    inline bool HasElapsed(Milliseconds startTime, Milliseconds interval) const
     {
-        return (uint64_t)(_timeSinceBootMs - startTime) >= intervalMs;
+        return (_timeSinceBootMs - startTime) >= interval;
     }
 
     // ---- Tick control ----
     inline void PreventSleep() { _preventSleep = true; }
 
-    // Request a shorter tick interval (e.g. faster tick)
-    inline void RequestFasterTick(uint32_t intervalMs)
+    inline void RequestFasterTick(Milliseconds interval)
     {
-        if (intervalMs < _tickIntervalMs)
-            _tickIntervalMs = intervalMs;
+        if (interval < _tickIntervalMs)
+            _tickIntervalMs = interval;
     }
 
-    // Current timestamp helper
-    static inline uint64_t NowMs()
-    {
-        return esp_timer_get_time() / 1000ULL;
-    }
+    static inline Milliseconds NowMs() { return ::NowMs(); }
 
 private:
-    const uint64_t _timeSinceBootMs;
-    uint32_t _tickIntervalMs;
+    const Milliseconds _timeSinceBootMs;
+    Milliseconds _tickIntervalMs;
     bool _preventSleep = false;
 };
+

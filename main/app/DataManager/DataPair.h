@@ -5,8 +5,19 @@
 
 struct DataPair
 {
-    constexpr static const size_t VALUE_SIZE = 8;
     DataKey key = DataKey::Empty;
-    uint8_t value[VALUE_SIZE] = {0};
-};
 
+    union
+    {
+        float   asFloat;
+        uint32_t asUint32;
+        uint64_t asUint64;
+        int32_t  asInt32;
+        int64_t  asInt64;
+    } value;
+
+    DataPair() { memset(&value, 0, sizeof(value)); }
+    explicit DataPair(DataKey k) : key(k) { memset(&value, 0, sizeof(value)); }
+    DataPair(DataKey k, float f) : key(k) { value.asFloat = f; }
+    DataPair(DataKey k, uint64_t u64) : key(k) { value.asUint64 = u64; }
+};

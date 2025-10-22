@@ -19,32 +19,27 @@ extern "C" void app_main(void)
 
     appContext.Init();
 
-    const uint32_t defaultTickIntervalMs = 1000;
-    uint32_t currentTickInterval = defaultTickIntervalMs;
-    uint64_t lastTickTime = TickContext::NowMs();
+    const Milliseconds defaultTickInterval = Millis(1000);
 
     while (true)
     {
-        uint64_t start = TickContext::NowMs();
+        Milliseconds start = NowMs();
 
-        TickContext tickCtx(start, defaultTickIntervalMs);
+        TickContext tickCtx(start, defaultTickInterval);
         appContext.Tick(tickCtx);
 
-        uint64_t end = TickContext::NowMs();
-        uint64_t elapsed = end - start;
+        Milliseconds end = NowMs();
+        Milliseconds elapsed = end - start;
 
-        if (elapsed > tickCtx.TickIntervalMs())
+        if (elapsed > tickCtx.TickInterval())
         {
-            ESP_LOGW(TAG, "Tick overrun: took %llu ms (interval %u ms)",
-                     elapsed, tickCtx.TickIntervalMs());
+            ESP_LOGW(TAG, "Tick overrun: took %llu ms, interval %llu ms",
+                    elapsed, tickCtx.TickInterval());
         }
         else if (!tickCtx.PreventSleepRequested())
         {
-            uint32_t remaining = tickCtx.TickIntervalMs() - elapsed;
-            vTaskDelay(pdMS_TO_TICKS(remaining));  // will later become deep sleep
+            Milliseconds remaining = tickCtx.TickInterval() - elapsed;
+            vTaskDelay(pdMS_TO_TICKS(remaining));  // later replace with deep sleep
         }
-
-        currentTickInterval = tickCtx.TickIntervalMs();
-        lastTickTime = TickContext::NowMs();
     }
 }
