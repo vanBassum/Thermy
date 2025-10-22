@@ -12,7 +12,7 @@ public:
 
     void writeChar(char c);
     void writeString(const char* s);
-    void writeFormat(const char* fmt, ...);
+    void writeString(const char* s, size_t len);
 
     void writeInt8(int8_t value);
     void writeUInt8(uint8_t value);

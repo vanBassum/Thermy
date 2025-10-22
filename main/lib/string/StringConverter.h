@@ -42,13 +42,6 @@ public:
     bool StringToUInt64(uint64_t& value, const char* str) const;
     bool UInt64ToString(char* buffer, size_t size, uint64_t value) const;
 
-    // ----- ENUM -----
-    template <typename TEnum>
-    bool StringToEnum(TEnum& value, const char* str) const;
-
-    template <typename TEnum>
-    bool EnumToString(char* buffer, size_t size, TEnum value) const;
-
     // ----- BLOB -----
     bool BlobToString(char* buffer, size_t bufferSize, const void* data, size_t dataLen) const;
     bool StringToBlob(void* outData, size_t outDataSize, const char* str) const;
@@ -60,22 +53,3 @@ private:
     bool ParseSigned64(long long& out, const char* str, long long min, long long max) const;
     bool ParseUnsigned64(unsigned long long& out, const char* str, unsigned long long max) const;
 };
-
-// --- Template implementations (must remain in header) ---
-template <typename TEnum>
-bool StringConverter::StringToEnum(TEnum& value, const char* str) const
-{
-    long long intValue;
-    if (!ParseSigned64(intValue, str,
-                       std::numeric_limits<long long>::min(),
-                       std::numeric_limits<long long>::max()))
-        return false;
-    value = static_cast<TEnum>(intValue);
-    return true;
-}
-
-template <typename TEnum>
-bool StringConverter::EnumToString(char* buffer, size_t size, TEnum value) const
-{
-    return std::snprintf(buffer, size, "%lld", static_cast<long long>(value)) > 0;
-}

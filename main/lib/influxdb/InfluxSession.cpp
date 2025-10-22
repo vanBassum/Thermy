@@ -67,7 +67,11 @@ InfluxSession& InfluxSession::withField(const char* key, float value)
     writer.writeChar(' ');
     WriteEscaped(key);
     writer.writeChar('=');
-    writer.writeFormat("%%.%df", 6, value);  // Use 6 decimal places
+    char fmt[8];
+    std::snprintf(fmt, sizeof(fmt), "%%.%df", 6);
+    char buf[32];
+    int len = std::snprintf(buf, sizeof(buf), fmt, value);
+    writer.writeString(buf, len);
     return *this;
 }
 

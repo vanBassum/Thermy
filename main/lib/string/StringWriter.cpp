@@ -16,21 +16,13 @@ void StringWriter::writeChar(char c) {
 
 void StringWriter::writeString(const char* s) {
     if (!s) return;
-    size_t len = std::strlen(s);
-    writeBufferInChunks(s, len);
+    writeBufferInChunks(s, std::strlen(s));
 }
 
-void StringWriter::writeFormat(const char* fmt, ...) {
-    char buf[256];
-    va_list args;
-    va_start(args, fmt);
-    int len = std::vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-    if (len > 0) {
-        if (len > static_cast<int>(sizeof(buf)))
-            len = sizeof(buf);
-        writeBufferInChunks(buf, static_cast<size_t>(len));
-    }
+void StringWriter::writeString(const char *s, size_t len)
+{
+    if (!s) return;
+    writeBufferInChunks(s, len);
 }
 
 // --- Type writers ---
