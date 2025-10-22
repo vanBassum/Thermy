@@ -12,6 +12,8 @@ set(SOURCE_FILES_LIST
     "lib/http/HttpRequestStream.cpp"
     "lib/influxdb/InfluxSession.cpp"
     "lib/nvs/NvsStorage.cpp"
+    "lib/string/StringConverter.cpp"
+    "lib/string/StringWriter.cpp"
     "lib/system/DateTime.cpp"
     "lib/system/TimeSpan.cpp"
 )
@@ -34,6 +36,7 @@ set(INCLUDE_DIRS_LIST
     "lib/rtos"
     "lib/settings"
     "lib/stream"
+    "lib/string"
     "lib/system"
 )
 
