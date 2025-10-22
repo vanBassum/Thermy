@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "FontDef.h"
 
 // 5x7 ASCII font (32–127)
 static const uint8_t font5x7[96][5] = {
@@ -98,4 +99,12 @@ static const uint8_t font5x7[96][5] = {
     {0x00,0x00,0x7F,0x00,0x00}, // '|'
     {0x00,0x41,0x36,0x08,0x00}, // '}'
     {0x08,0x04,0x08,0x10,0x08}, // '~'
+};
+
+static const FontDef Font5x7 = {
+    .table = (const uint8_t*)font5x7,
+    .width = 5,
+    .height = 7,
+    .firstChar = 32,
+    .lastChar = 127,
 };

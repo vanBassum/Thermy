@@ -28,4 +28,6 @@ private:
     DisplayDriver driver;
     Milliseconds lastDisplayUpdate;
 
+    void DrawHeader(SSD1306 &display);
+    void DrawSensorTemperatures(SSD1306 &display);
 };

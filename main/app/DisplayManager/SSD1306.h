@@ -4,10 +4,15 @@
 #include "driver/i2c.h"
 #include "driver/spi_master.h"
 #include "esp_err.h"
+#include "TextStyle.h"
+
 
 // https://emalliab.wordpress.com/2025/02/12/esp32-c3-0-42-oled/
 // https://electronics.stackexchange.com/questions/725871/how-to-use-onboard-0-42-inch-oled-for-esp32-c3-oled-development-board-with-micro
 // https://raw.githubusercontent.com/stlehmann/micropython-ssd1306/refs/heads/master/ssd1306.py
+
+
+
 
 // ==========================================================
 class SSD1306
@@ -24,8 +29,11 @@ public:
     void fill(uint8_t color);
     void drawPixel(int x, int y, bool color);
     void show();
-    void drawChar(int x, int y, char c, int size=1);
-    void drawText(int x, int y, const char *str, int size=1);
+    void drawChar(int x, int y, char c, const TextStyle& style);
+    void drawText(int x, int y, const char *str, const TextStyle& style);
+
+    uint8_t getWidth() const { return width; }
+    uint8_t getHeight() const { return height; }
 
 protected:
     virtual void writeCmd(uint8_t cmd) = 0;

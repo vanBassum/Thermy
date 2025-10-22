@@ -1,0 +1,18 @@
+#pragma once
+#include <stdint.h>
+#include "FontDef.h"
+#include "font5x7.h"
+#include "font8x8_symbols.h"
+
+struct TextStyle
+{
+    const FontDef* font;
+    uint8_t size;
+    bool color;
+
+    constexpr TextStyle(const FontDef* f, uint8_t s = 1, bool c = true)
+        : font(f), size(s), color(c) {}
+
+    // ---- Predefined common styles ----
+    static constexpr TextStyle Default()      { return TextStyle(&Font5x7, 1, true); }
+};

@@ -4,7 +4,6 @@
 #include "driver/gpio.h"
 #include <algorithm>
 #include "esp_log.h"
-#include "font5x7.h"
 
 
 // ==== SSD1306 Command Constants ====
@@ -101,42 +100,48 @@ void SSD1306::show() {
     }
 }
 
+void SSD1306::drawChar(int x, int y, char c, const TextStyle& style)
+{
+    if (!style.font) return;
 
-void SSD1306::drawChar(int x, int y, char c, int size) {
-    if (c < 32 || c > 127) return;
-    const uint8_t* glyph = font5x7[c - 32];
+    const uint8_t* glyph = style.font->GetGlyph(c);
+    if (!glyph) return;
 
-    for (int col = 0; col < 5; ++col) {
+    for (int col = 0; col < style.font->width; ++col)
+    {
         uint8_t bits = glyph[col];
-        for (int row = 0; row < 7; ++row) {
-            if (bits & (1 << row)) {
-                // Scale both width and height by "size"
-                for (int dx = 0; dx < size; ++dx) {
-                    for (int dy = 0; dy < size; ++dy) {
-                        drawPixel(x + col * size + dx, y + row * size + dy, true);
+        for (int row = 0; row < style.font->height; ++row)
+        {
+            if (bits & (1 << row))
+            {
+                for (int dx = 0; dx < style.size; ++dx)
+                {
+                    for (int dy = 0; dy < style.size; ++dy)
+                    {
+                        drawPixel(
+                            x + col * style.size + dx,
+                            y + row * style.size + dy,
+                            style.color
+                        );
                     }
                 }
             }
         }
     }
+}
 
-    // Optional: draw a column of spacing pixels at the end
-    if (size > 1) {
-        int spacing = size; // keep proportional
-        for (int dx = 0; dx < spacing; ++dx) {
-            for (int dy = 0; dy < 7 * size; ++dy) {
-                drawPixel(x + 5 * size + dx, y + dy, false);
-            }
-        }
+void SSD1306::drawText(int x, int y, const char* str, const TextStyle& style)
+{
+    if (!style.font || !str) return;
+
+    int cursorX = x;
+    while (*str)
+    {
+        drawChar(cursorX, y, *str++, style);
+        cursorX += (style.font->width + 1) * style.size;
     }
 }
 
-void SSD1306::drawText(int x, int y, const char* str, int size) {
-    while (*str) {
-        drawChar(x, y, *str++, size);
-        x += 6 * size; // 5 px glyph + 1 px spacing
-    }
-}
 
 
 

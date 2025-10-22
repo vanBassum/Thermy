@@ -7,30 +7,31 @@
 #include "esp_log.h"
 #include "SettingsManager.h"
 #include "TickContext.h"
+#include "DataManager.h"
+#include "WifiManager.h"
+#include "TimeManager.h"
 
 class InfluxManager
 {
     inline static constexpr const char *TAG = "InfluxManager";
+    inline static constexpr Milliseconds INFLUX_WRITE_INTERVAL = Millis(30000);
 
 public:
     explicit InfluxManager(ServiceProvider &ctx);
 
     void Init();
-    void Tick(TickContext& ctx) {}
-
-    bool Write(const char *measurement, float value, const DateTime &timestamp, TickType_t timeout);
-    InfluxSession BeginWrite(const char *measurement, const DateTime &timestamp, TickType_t timeout)
-    {
-        REQUIRE_READY(_initGuard);
-        LOCK(_mutex);
-        return _client.Measurement(measurement, timestamp, timeout);
-    }
+    void Tick(TickContext& ctx);
 
 private:
     SettingsManager &settingsManager;
+    DataManager &dataManager;
+    WifiManager &wifiManager;
+    TimeManager &timeManager;
+
     InitGuard _initGuard;
     RecursiveMutex _mutex;
     InfluxClient _client;
+    Milliseconds _lastWriteTime = 0;
 
     char influxBaseUrl[128];
     char influxApiKey[128];

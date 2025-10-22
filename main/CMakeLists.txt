@@ -30,6 +30,7 @@ set(INCLUDE_DIRS_LIST
     "app/SettingsManager"
     "app/TimeManager"
     "app/WifiManager"
+    "app/DisplayManager/Fonts"
     "app/SettingsManager/Helpers"
     "lib/common"
     "lib/http"

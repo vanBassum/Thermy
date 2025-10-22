@@ -3,6 +3,9 @@
 
 InfluxManager::InfluxManager(ServiceProvider &services)
     : settingsManager(services.GetSettingsManager())
+    , dataManager(services.GetDataManager())
+    , wifiManager(services.GetWifiManager())
+    , timeManager(services.GetTimeManager())
 {
 }
 
@@ -25,13 +28,29 @@ void InfluxManager::Init()
     _initGuard.SetReady();
 }
 
-bool InfluxManager::Write(const char *measurement, float value, const DateTime &timestamp, TickType_t timeout)
+void InfluxManager::Tick(TickContext &ctx)
 {
     REQUIRE_READY(_initGuard);
     LOCK(_mutex);
 
-    bool success = _client.Measurement(measurement, timestamp, timeout)
-        .withField("value", value)
-        .Finish();
-    return success;
+    if (!ctx.HasElapsed(_lastWriteTime, INFLUX_WRITE_INTERVAL))
+        return;
+
+    if (!wifiManager.IsConnected()) {
+        ctx.PreventSleep(); // Prevent sleep for wifi to reconnect
+        return;
+    }
+
+    if (!timeManager.IsTimeValid()){
+        ctx.PreventSleep(); // Prevent sleep for ntp to sync
+        return;
+    }
+
+    ESP_LOGI(TAG, "Writing data to InfluxDB...");
+
+
+    
+    _lastWriteTime = ctx.TimeSinceBoot();
 }
+
+
