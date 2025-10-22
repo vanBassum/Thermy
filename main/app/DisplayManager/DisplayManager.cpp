@@ -44,7 +44,7 @@ void DisplayManager::DrawHeader(SSD1306 &display)
     TextStyle timeStyle(&Font5x7, 1, true);
 
     // --- Draw WiFi Icon (top-left)
-    char wifiChar = wifiManager.IsConnected() ? (char)SymbolIcon::Wifi : ' ';
+    char wifiChar = wifiManager.IsConnected() ? (char)SymbolIcon::Wifi : (char)SymbolIcon::Empty;
     display.drawChar(0, 0, wifiChar, iconStyle);
 
     // --- Draw time (top-right)

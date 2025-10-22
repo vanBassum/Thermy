@@ -10,6 +10,13 @@ class InfluxSession
 {
     inline static constexpr const char* TAG = "InfluxSession";
 
+    enum class WritePhase {
+        None,
+        Measurement,
+        Tags,
+        Fields
+    };
+
 public:
     InfluxSession() = default;
     ~InfluxSession();
@@ -25,8 +32,6 @@ public:
     /// Initializes the session.
     void Init(const char* url,
               const char* apiKey,
-              const char* measurementName,
-              const DateTime& timestamp,
               TickType_t timeout);
 
     InfluxSession& withTag(const char* key, const char* value);
@@ -42,6 +47,7 @@ private:
     HttpRequest _req;
     DateTime _timestamp;
     InitGuard _initGuard;
+    WritePhase _phase = WritePhase::None;
 
     void WriteEscaped(const char* text);
 };

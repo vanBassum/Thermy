@@ -3,6 +3,7 @@
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include <cstring>
+#include "BufferedStream.h"
 
 class HttpRequest
 {
@@ -19,7 +20,7 @@ public:
     void SetHeader(const char* key, const char* value);
     int GetStatusCode() const;
 
-    HttpRequestStream& Stream() { return _stream; }
+    Stream& GetStream() { return _bufferedStream; }
 
     esp_http_client_handle_t GetClientHandle() const { return _client; }
 
@@ -30,4 +31,5 @@ private:
     esp_http_client_handle_t _client = nullptr;
     bool _opened = false;
     HttpRequestStream _stream;  // persistent stream for this request
+    BufferedStream<128> _bufferedStream{_stream};
 };

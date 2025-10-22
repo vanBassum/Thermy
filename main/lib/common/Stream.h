@@ -8,3 +8,5 @@ public:
     virtual size_t read(void* buffer, size_t len) = 0;
     virtual void flush() = 0;
 };
+
+

@@ -37,4 +37,7 @@ private:
     char influxApiKey[128];
     char influxOrganisation[64];
     char influxBucket[64]; 
+
+
+    void SendLogCode_Temperature(InfluxSession& session, DataEntry &entry);
 };

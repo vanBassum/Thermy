@@ -84,6 +84,14 @@ constexpr bool HasFlag(Enum value, Enum flag) {
 }
 
 // --------------------------------------------------
+// Helper: SetFlag(enumValue, flag)
+// --------------------------------------------------
+template<typename Enum>
+constexpr Enum SetFlag(Enum value, Enum flag) {
+    return value | flag;
+}
+
+// --------------------------------------------------
 // Convenience macro to enable bitmask operators
 // --------------------------------------------------
 #define ENABLE_BITMASK_OPERATORS(EnumType) \

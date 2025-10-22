@@ -15,17 +15,26 @@ enum class SymbolIcon : char
     ArrowUp,
 };
 
-
-static const uint8_t font8x8_symbols[8][8] = {
-    // WiFi icon
-    {0b00011000,
-     0b00111100,
-     0b01111110,
-     0b11011011,
-     0b00011000,
-     0b00011000,
+static const uint8_t font8x8_symbols[9][8] = {
+    // Empty (space)
+    {0b00000000,
      0b00000000,
-     0b00011000},
+     0b00000000,
+     0b00000000,
+     0b00000000,
+     0b00000000,
+     0b00000000,
+     0b00000000},
+
+    // WiFi icon
+    {0b00000100,
+     0b00000010,
+     0b00001000,
+     0b01100101,
+     0b01100101,
+     0b00001000,
+     0b00000010,
+     0b00000100},
 
     // Bluetooth symbol
     {0b00010000,
@@ -95,13 +104,12 @@ static const uint8_t font8x8_symbols[8][8] = {
      0b00001000,
      0b00001000,
      0b00001000,
-     0b00000000}
-};
+     0b00000000}};
 
 static const FontDef Font8x8_Symbols = {
     .table = &font8x8_symbols[0][0],
     .width = 8,
     .height = 8,
-    .firstChar = 1,
+    .firstChar = 0,
     .lastChar = 8,
 };

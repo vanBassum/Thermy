@@ -29,12 +29,11 @@ public:
         _initGuard.SetReady();
     }
 
-    /// Starts a new write session
-    InfluxSession Measurement(const char* name, const DateTime& timestamp, TickType_t timeout)
+    InfluxSession CreateSession(const TickType_t timeout)
     {
         REQUIRE_READY(_initGuard);
         InfluxSession session;
-        session.Init(_urlBuffer, _apiKey, name, timestamp, timeout);
+        session.Init(_urlBuffer, _apiKey, timeout);
         return session;
     }
 

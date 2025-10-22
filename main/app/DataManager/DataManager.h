@@ -25,29 +25,6 @@ public:
         writePtr = (writePtr + 1) % MAX_ENTRIES;
     }
 
-    template <typename FinderFunc, typename CallbackFunc>
-    bool FindEntry(FinderFunc finder, CallbackFunc callback)
-    {
-        LOCK(mutex);
-
-        for (size_t i = 0; i < MAX_ENTRIES; ++i)
-        {
-            size_t index = (writePtr + i) % MAX_ENTRIES;
-            DataEntry &entry = entries[index];
-
-            if (entry.timestamp == DateTime::MinValue())
-                continue; // skip empty
-
-            if (finder(entry))
-            {
-                callback(entry);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     template <typename CallbackFunc>
     void ForEach(CallbackFunc callback)
     {

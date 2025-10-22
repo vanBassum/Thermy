@@ -3,6 +3,8 @@
 enum class DataKey
 {
     Empty,
-    Temperature,
-    MacAddress
+    LogCode,        // What was the trigger
+    Value,          // Measured value     
+    Address,        // Sensor address
 };
+

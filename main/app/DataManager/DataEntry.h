@@ -10,5 +10,13 @@ struct DataEntry
     DateTime timestamp = DateTime::MinValue();
     DataPair pairs[PAIR_COUNT] = {};
     HandledFlags flags = HandledFlags::None;
+
+    const DataPair* FindPair(DataKey key) const
+    {
+        for (const auto& p : pairs)
+            if (p.key == key)
+                return &p;
+        return nullptr;
+    }
 };
 

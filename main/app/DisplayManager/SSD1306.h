@@ -32,8 +32,8 @@ public:
     void drawChar(int x, int y, char c, const TextStyle& style);
     void drawText(int x, int y, const char *str, const TextStyle& style);
 
-    uint8_t getWidth() const { return width; }
-    uint8_t getHeight() const { return height; }
+    uint8_t getWidth() const { return 72; }
+    uint8_t getHeight() const { return 40; }
 
 protected:
     virtual void writeCmd(uint8_t cmd) = 0;

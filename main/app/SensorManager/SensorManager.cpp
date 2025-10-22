@@ -147,8 +147,9 @@ void SensorManager::ReadTemperatures()
 
         DataEntry entry;
         entry.timestamp = DateTime::Now();
-        entry.pairs[0] = { DataKey::MacAddress, (uint64_t)sensors[index].address};
-        entry.pairs[1] = { DataKey::Temperature, sensors[index].temperatureC };
+        entry.pairs[0] = { DataKey::LogCode, LogCode::TemperatureRead };
+        entry.pairs[1] = { DataKey::Address, (uint64_t)sensors[index].address};
+        entry.pairs[2] = { DataKey::Value, sensors[index].temperatureC };
         dataManager.Append(entry);
     }
 }
