@@ -67,7 +67,7 @@ InfluxSession& InfluxSession::withField(const char* key, float value)
     writer.writeChar(' ');
     WriteEscaped(key);
     writer.writeChar('=');
-    writer.writeFloat(value, 6);
+    writer.writeFormat("%%.%df", 6, value);  // Use 6 decimal places
     return *this;
 }
 

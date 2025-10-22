@@ -24,14 +24,6 @@ public:
     void writeUInt64(uint64_t value);
     void writeBool(bool value);
     void writeFloat(float value);
-
-    template <typename TEnum>
-    void writeEnum(TEnum value) {
-        char buf[32];
-        if (_converter.EnumToString(buf, sizeof(buf), value))
-            writeBufferInChunks(buf, std::strlen(buf));
-    }
-
     void writeBlob(const void* data, size_t len);
 
 private:

@@ -1,12 +1,14 @@
 #pragma once
 #include <cstdint>
 #include <cstddef>
+#include <limits>
+#include <cstdio>
 
 class StringConverter
 {
 public:
     static const StringConverter& Default();
-    
+
     // ----- FLOAT -----
     bool StringToFloat(float& value, const char* str) const;
     bool FloatToString(char* buffer, size_t size, float value) const;

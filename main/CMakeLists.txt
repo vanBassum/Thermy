@@ -35,7 +35,6 @@ set(INCLUDE_DIRS_LIST
     "lib/nvs"
     "lib/rtos"
     "lib/settings"
-    "lib/stream"
     "lib/string"
     "lib/system"
 )
