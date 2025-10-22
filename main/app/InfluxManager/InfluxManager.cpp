@@ -47,11 +47,7 @@ void InfluxManager::Tick(TickContext &ctx)
         return;
     }
 
-    ESP_LOGI(TAG, "Writing data to InfluxDB...");
-
     InfluxSession session = _client.CreateSession(pdMS_TO_TICKS(5000));
-
-    ESP_LOGI(TAG, "InfluxDB session started.");
     int entriesWritten = 0;
 
     dataManager.ForEach([&](DataEntry &entry)
@@ -77,7 +73,6 @@ void InfluxManager::Tick(TickContext &ctx)
         // Mark as written
         entry.flags = SetFlag(entry.flags, HandledFlags::WrittenToInflux);
         entriesWritten++;
-        ESP_LOGI(TAG, "InfluxDB entry written for log code: %d", static_cast<int>(logCode));
     });
 
     session.Finish();
@@ -101,8 +96,6 @@ void InfluxManager::SendLogCode_Temperature(InfluxSession& session, DataEntry &e
 
     char timestampStr[25] = {};
     entry.timestamp.ToStringLocal(timestampStr, sizeof(timestampStr), DateTime::FormatIso8601);
-    ESP_LOGI(TAG, "Sending temperature: %f C from sensor %s at %s",
-             valuePair->value.asFloat, addressStr, timestampStr);
 
     session.withMeasurement("temperature", entry.timestamp)
             .withTag("address", addressStr)
