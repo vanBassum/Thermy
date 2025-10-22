@@ -48,7 +48,7 @@ public:
         case SettingType::Integer32:
             return converter.StringToInt32(handle.AsInt32(), value);
         case SettingType::Enum:
-            return converter.StringToEnum(handle.AsInt32(), value);
+            return converter.StringToInt32(handle.AsInt32(), value);
         case SettingType::Boolean:
             return converter.StringToBool(handle.AsBool(), value);
         case SettingType::Float:

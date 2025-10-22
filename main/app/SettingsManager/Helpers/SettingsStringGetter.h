@@ -48,7 +48,7 @@ public:
         case SettingType::Integer32:
             return converter.Int32ToString(buffer, size, h.AsInt32());
         case SettingType::Enum:
-            return converter.EnumToString(buffer, size, h.AsInt32());
+            return converter.Int32ToString(buffer, size, h.AsInt32());
         case SettingType::Boolean:
             return converter.BoolToString(buffer, size, h.AsBool());
         case SettingType::Float:
