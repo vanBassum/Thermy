@@ -11,6 +11,7 @@ class TimeManager
 
 public:
     explicit TimeManager(ServiceProvider &ctx);
+    ~TimeManager();
 
     void Init();
     void Tick(TickContext& ctx) {}
@@ -18,7 +19,7 @@ public:
 
     // Accessors
     DateTime GetSyncTime() const { return syncTime; }
-    TimeSpan GetUptimeSinceSync() const;
+    TimeSpan GetUptimeSinceFirstSync() const;
     bool HasSynced() const { return synced; }
 
 private:

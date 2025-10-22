@@ -8,7 +8,7 @@
 
 class DataManager
 {
-    constexpr static const size_t MAX_ENTRIES = 100;
+    constexpr static const size_t MAX_ENTRIES = 200;
     inline static constexpr const char *TAG = "DataManager";
 
 public:

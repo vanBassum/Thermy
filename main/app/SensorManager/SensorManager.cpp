@@ -94,7 +94,6 @@ void SensorManager::ScanBus()
     REQUIRE_READY(initGuard);
     LOCK(mutex);
 
-    ESP_LOGI(TAG, "Rescanning OneWire bus for sensors...");
     onewire_device_iter_handle_t iter = nullptr;
     ESP_ERROR_CHECK(onewire_new_device_iter(bus, &iter));
 
@@ -108,7 +107,7 @@ void SensorManager::ScanBus()
         {
             onewire_device_address_t addr;
             ds18b20_get_device_address(sensors[sensorCount].handle, &addr);
-            ESP_LOGI(TAG, "Found DS18B20[%d] address: %016llX", sensorCount, addr);
+            //ESP_LOGI(TAG, "Found DS18B20[%d] address: %016llX", sensorCount, addr);
             sensorCount++;
         }
         else
@@ -117,15 +116,45 @@ void SensorManager::ScanBus()
         }
     }
     onewire_del_device_iter(iter);
-    ESP_LOGI(TAG, "Found %d DS18B20 sensor(s)", sensorCount);
+    //ESP_LOGI(TAG, "Found %d DS18B20 sensor(s)", sensorCount);
 }
 
 void SensorManager::TriggerTemperatureConversions()
 {
-    esp_err_t err = ds18b20_trigger_temperature_conversion_for_all(bus);
+    REQUIRE_READY(initGuard);
+    LOCK(mutex);
+
+    esp_err_t err;
+
+    // Reset the OneWire bus
+    err = onewire_bus_reset(bus);
     if (err != ESP_OK)
-        ESP_LOGE(TAG, "Failed to trigger temperature conversion: %s", esp_err_to_name(err));
+    {
+        ESP_LOGE(TAG, "OneWire reset failed: %s", esp_err_to_name(err));
+        return;
+    }
+
+    // Broadcast "Skip ROM" command (0xCC) — all sensors will listen
+    err = onewire_bus_write_bytes(bus, (uint8_t[]){ 0xCC }, 1);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to send Skip ROM: %s", esp_err_to_name(err));
+        return;
+    }
+
+    // Send "Convert T" command (0x44) to start temperature conversion
+    err = onewire_bus_write_bytes(bus, (uint8_t[]){ 0x44 }, 1);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to send Convert T command: %s", esp_err_to_name(err));
+        return;
+    }
+
+    // Done! The DS18B20 sensors now convert temperature asynchronously (~750 ms at 12-bit)
+    ESP_LOGD(TAG, "Triggered DS18B20 temperature conversion (non-blocking)");
 }
+
+
 
 void SensorManager::ReadTemperatures()
 {

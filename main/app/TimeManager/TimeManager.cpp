@@ -16,6 +16,12 @@ TimeManager::TimeManager(ServiceProvider &ctx)
     s_instance = this;
 }
 
+TimeManager::~TimeManager()
+{
+    if (s_instance == this)
+        s_instance = nullptr;
+}
+
 void TimeManager::Init()
 {
     if (initGuard.IsReady())
@@ -37,15 +43,20 @@ void TimeManager::TimeSyncCallback(struct timeval *tv)
     if (!s_instance)
         return;
 
+    // Called from SNTP task context, safe to lock mutex.
     LOCK(s_instance->mutex);
 
-    s_instance->syncUptimeUs = esp_timer_get_time();
-    s_instance->syncTime = DateTime::FromUtc(tv->tv_sec);
-    s_instance->synced = true;
-
-    ESP_LOGI(TAG, "NTP synchronized: %lld → %ld (epoch)",
-             static_cast<long long>(s_instance->syncUptimeUs),
-             s_instance->syncTime.UtcSeconds());
+    if(!s_instance->synced)
+    {
+        // Only set these values the first time we sync
+        // So we can fix datetimes later
+        s_instance->syncUptimeUs = esp_timer_get_time();
+        s_instance->syncTime = DateTime::FromUtc(tv->tv_sec);
+        s_instance->synced = true;
+    }
+    char timeStr[32] = {};
+    DateTime::Now().ToStringLocal(timeStr, sizeof(timeStr), DateTime::FormatIso8601);
+    ESP_LOGI(TAG, "NTP synchronized: %s",timeStr);
 }
 
 bool TimeManager::IsTimeValid() const
@@ -57,7 +68,7 @@ bool TimeManager::IsTimeValid() const
     return (info.tm_year >= (2020 - 1900));
 }
 
-TimeSpan TimeManager::GetUptimeSinceSync() const
+TimeSpan TimeManager::GetUptimeSinceFirstSync() const
 {
     if (!synced)
         return TimeSpan::Zero();

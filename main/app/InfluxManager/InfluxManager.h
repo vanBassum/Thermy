@@ -10,17 +10,24 @@
 #include "DataManager.h"
 #include "WifiManager.h"
 #include "TimeManager.h"
+#include "rtos.h"
 
 class InfluxManager
 {
     inline static constexpr const char *TAG = "InfluxManager";
-    inline static constexpr Milliseconds INFLUX_WRITE_INTERVAL = Millis(10000);
+    inline static constexpr Milliseconds INFLUX_WRITE_INTERVAL = Millis(30000);
+
+    enum class State
+    {
+        Idle,
+        Working
+    };
 
 public:
     explicit InfluxManager(ServiceProvider &ctx);
 
     void Init();
-    void Tick(TickContext& ctx);
+    void Tick(TickContext &ctx);
 
 private:
     SettingsManager &settingsManager;
@@ -28,16 +35,19 @@ private:
     WifiManager &wifiManager;
     TimeManager &timeManager;
 
+    Task task;
     InitGuard _initGuard;
     RecursiveMutex _mutex;
-    InfluxClient _client;
     Milliseconds _lastWriteTime = 0;
+    Synchronized<State> _state{State::Idle};
 
     char influxBaseUrl[128];
     char influxApiKey[128];
     char influxOrganisation[64];
-    char influxBucket[64]; 
+    char influxBucket[64];
 
+    void EnsureValidTimestamp(DataEntry &entry);
+    void SendLogCode_Temperature(InfluxSession &session, DataEntry &entry);
 
-    void SendLogCode_Temperature(InfluxSession& session, DataEntry &entry);
+    void Work();    
 };

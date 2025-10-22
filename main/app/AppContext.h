@@ -13,6 +13,8 @@
 
 class AppContext : public ServiceProvider
 {
+    constexpr static const char *TAG = "AppContext";
+    constexpr static Milliseconds TICK_WARNING_THRESHOLD = Millis(500);
 public:
     AppContext() = default;
     ~AppContext() = default;
@@ -39,13 +41,14 @@ public:
         GetInfluxManager().Init();
     }
 
-    void Tick(TickContext& ctx) {
-        GetSettingsManager().Tick(ctx);
-        GetDisplayManager() .Tick(ctx);
-        GetWifiManager()    .Tick(ctx);
-        GetTimeManager()    .Tick(ctx);
-        GetSensorManager()  .Tick(ctx);
-        GetInfluxManager()  .Tick(ctx);
+    void Tick(TickContext& ctx)
+    {
+        MeasureTick("SettingsManager", [&]() { GetSettingsManager().Tick(ctx); });
+        MeasureTick("DisplayManager",  [&]() { GetDisplayManager().Tick(ctx); });
+        MeasureTick("WifiManager",     [&]() { GetWifiManager().Tick(ctx); });
+        MeasureTick("TimeManager",     [&]() { GetTimeManager().Tick(ctx); });
+        MeasureTick("SensorManager",   [&]() { GetSensorManager().Tick(ctx); });
+        MeasureTick("InfluxManager",   [&]() { GetInfluxManager().Tick(ctx); });
     }
 
 private:
@@ -57,6 +60,20 @@ private:
     InfluxManager influxManager{*this};
     TimeManager timeManager{*this};
     SettingsManager settingsManager{*this};
+
+
+    template<typename F>
+    void MeasureTick(const char* name, F&& func)
+    {
+        Milliseconds start = NowMs();
+        func();
+        Milliseconds elapsed = NowMs() - start;
+
+        if (elapsed > TICK_WARNING_THRESHOLD)
+        {
+            ESP_LOGW("AppContext", "%s Tick took %lld ms", name, elapsed);
+        }
+    }
 };
 
 
