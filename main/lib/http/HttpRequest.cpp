@@ -87,7 +87,6 @@ int HttpRequest::Perform()
     }
 
     int status = esp_http_client_get_status_code(_client);
-    ESP_LOGI(TAG, "HTTP status: %d", status);
 
     if (status >= 400) {
         char buf[256];

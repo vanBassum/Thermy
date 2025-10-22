@@ -1,6 +1,6 @@
 #pragma once
 #include "settings.h"
-#include "NetworkSettings.h"
+#include "SystemSettings.h"
 
 // ======================================================
 // Root settings
@@ -10,7 +10,7 @@ struct RootSettings : public ISettingsGroup
 {
     using ThisType = RootSettings;
 
-    NetworkSettings network;
+    SystemSettings system;
 
     static const SettingsDescriptor SCHEMA[];
 
@@ -22,7 +22,7 @@ struct RootSettings : public ISettingsGroup
 // Static schema definition
 // ------------------------------------------------------
 inline const SettingsDescriptor RootSettings::SCHEMA[] = {
-    DESCRIPTOR_GROUP("Network", network),
+    DESCRIPTOR_GROUP("System", system),
 };
 
 // ------------------------------------------------------

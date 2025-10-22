@@ -5,6 +5,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <string.h>
+#include "core_utils.h"
 
 WifiManager::WifiManager(ServiceProvider &ctx)
     : _ctx(ctx)
@@ -48,10 +49,10 @@ bool WifiManager::LoadSettings()
 {
     _ctx.GetSettingsManager().Access([&](RootSettings &settings)
     {
-        wifiEnabled = settings.network.wifiEnabled;
+        wifiEnabled = settings.system.wifiEnabled;
         memset(&wifiConfig, 0, sizeof(wifiConfig));
-        snprintf((char *)wifiConfig.sta.ssid, sizeof(wifiConfig.sta.ssid), "%s", settings.network.wifiSsid);
-        snprintf((char *)wifiConfig.sta.password, sizeof(wifiConfig.sta.password), "%s", settings.network.wifiPassword);
+        memcpy(&wifiConfig.sta.ssid, settings.system.wifiSsid, MIN(sizeof(wifiConfig.sta.ssid), sizeof(settings.system.wifiSsid)));
+        memcpy(&wifiConfig.sta.password, settings.system.wifiPassword, MIN(sizeof(wifiConfig.sta.password), sizeof(settings.system.wifiPassword)));
         wifiConfig.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
         wifiConfig.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;  // future-proof for mixed networks
     });

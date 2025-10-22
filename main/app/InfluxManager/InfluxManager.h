@@ -15,7 +15,6 @@ public:
     explicit InfluxManager(ServiceProvider &ctx);
 
     void Init();
-    bool IsReady() const { return _initGuard.IsReady(); }
     bool Write(const char *measurement, float value, const DateTime &timestamp, TickType_t timeout);
 
 private:
@@ -23,4 +22,9 @@ private:
     InitGuard _initGuard;
     RecursiveMutex _mutex;
     InfluxClient _client;
+
+    char influxBaseUrl[128];
+    char influxApiKey[128];
+    char influxOrganisation[64];
+    char influxBucket[64]; 
 };

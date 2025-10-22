@@ -1,5 +1,5 @@
 #include "InfluxManager.h"
-#include "secrets.h"
+#include "core_utils.h"
 
 InfluxManager::InfluxManager(ServiceProvider &services)
     : settingsManager(services.GetSettingsManager())
@@ -13,18 +13,15 @@ void InfluxManager::Init()
 
     LOCK(_mutex);
 
-    const char *baseUrl = INFLUX_BASE_URL;
-    const char *apiKey = INFLUX_API_KEY;
-    const char *organization = INFLUX_ORGANISATION;
-    const char *bucket = INFLUX_BUCKET;
-    
-    if (!baseUrl || !apiKey || !organization || !bucket)
+    settingsManager.Access([this](const RootSettings &settings)
     {
-        ESP_LOGW(TAG, "Influx settings incomplete, skipping init");
-        return;
-    }
+        memcpy(influxBaseUrl, settings.system.influxBaseUrl, MIN(sizeof(influxBaseUrl), sizeof(settings.system.influxBaseUrl)));
+        memcpy(influxApiKey, settings.system.influxApiKey, MIN(sizeof(influxApiKey), sizeof(settings.system.influxApiKey)));
+        memcpy(influxOrganisation, settings.system.influxOrganisation, MIN(sizeof(influxOrganisation), sizeof(settings.system.influxOrganisation)));
+        memcpy(influxBucket, settings.system.influxBucket, MIN(sizeof(influxBucket), sizeof(settings.system.influxBucket)));
+    });
 
-    _client.Init(baseUrl, apiKey, organization, bucket);
+    _client.Init(influxBaseUrl, influxApiKey, influxOrganisation, influxBucket);
     _initGuard.SetReady();
 }
 
