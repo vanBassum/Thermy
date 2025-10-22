@@ -10,7 +10,8 @@
 // https://raw.githubusercontent.com/stlehmann/micropython-ssd1306/refs/heads/master/ssd1306.py
 
 // ==========================================================
-class SSD1306 {
+class SSD1306
+{
 public:
     SSD1306(uint8_t width, uint8_t height, bool external_vcc);
     virtual ~SSD1306();
@@ -23,21 +24,25 @@ public:
     void fill(uint8_t color);
     void drawPixel(int x, int y, bool color);
     void show();
+    void drawChar(int x, int y, char c);
+    void drawText(int x, int y, const char *str);
 
 protected:
     virtual void writeCmd(uint8_t cmd) = 0;
-    virtual void writeData(const uint8_t* data, size_t len) = 0;
+    virtual void writeData(const uint8_t *data, size_t len) = 0;
 
     uint8_t width;
     uint8_t height;
     bool external_vcc;
     uint8_t pages;
-    uint8_t* buffer;
+    uint8_t *buffer;
 };
 
 // ==========================================================
-class SSD1306_I2C : public SSD1306 {
-    inline static constexpr const char* OLED_TAG = "SSD1306_I2C";
+class SSD1306_I2C : public SSD1306
+{
+    inline static constexpr const char *OLED_TAG = "SSD1306_I2C";
+
 public:
     SSD1306_I2C(uint8_t width, uint8_t height,
                 i2c_port_t i2c_port, uint8_t addr = 0x3C,
@@ -46,7 +51,7 @@ public:
 
 protected:
     void writeCmd(uint8_t cmd) override;
-    void writeData(const uint8_t* data, size_t len) override;
+    void writeData(const uint8_t *data, size_t len) override;
 
 private:
     i2c_port_t port;
@@ -54,7 +59,8 @@ private:
 };
 
 // ==========================================================
-class SSD1306_SPI : public SSD1306 {
+class SSD1306_SPI : public SSD1306
+{
 public:
     SSD1306_SPI(uint8_t width, uint8_t height,
                 spi_device_handle_t spi,
@@ -64,7 +70,7 @@ public:
 
 protected:
     void writeCmd(uint8_t cmd) override;
-    void writeData(const uint8_t* data, size_t len) override;
+    void writeData(const uint8_t *data, size_t len) override;
 
 private:
     spi_device_handle_t spi;

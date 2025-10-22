@@ -4,6 +4,7 @@
 #include "driver/gpio.h"
 #include <algorithm>
 #include "esp_log.h"
+#include "font5x7.h"
 
 
 // ==== SSD1306 Command Constants ====
@@ -88,16 +89,37 @@ void SSD1306::drawPixel(int x, int y, bool color) {
 }
 
 void SSD1306::show() {
-    const uint8_t xOffset = 2; // typical SH1106 left margin
+    // These offsets align the 128×64 buffer to the visible 72×40 window
+    const uint8_t xOffset = 26;  // shift right (try 26–32)
+    const uint8_t yOffset = 3;   // shift down (3 pages × 8 px = 24 px)
+
     for (uint8_t page = 0; page < pages; page++) {
-        writeCmd(0xB0 + page);                   // page address
-        writeCmd(xOffset & 0x0F);                // lower column
-        writeCmd(0x10 | (xOffset >> 4));         // higher column
-        writeData(&buffer[page * width], width); // one page (width bytes)
-        vTaskDelay(pdMS_TO_TICKS(1));            // keep WD happy
+        writeCmd(0xB0 + page + yOffset);        // set page address (vertical offset)
+        writeCmd((xOffset + 2) & 0x0F);         // lower column start
+        writeCmd(0x10 | ((xOffset + 2) >> 4));  // higher column start
+        writeData(&buffer[page * width], width);
     }
 }
 
+
+void SSD1306::drawChar(int x, int y, char c) {
+    if (c < 32 || c > 127) return;
+    const uint8_t* glyph = font5x7[c - 32];
+    for (int col = 0; col < 5; ++col) {
+        uint8_t bits = glyph[col];
+        for (int row = 0; row < 7; ++row) {
+            if (bits & (1 << row))
+                drawPixel(x + col, y + row, true);
+        }
+    }
+}
+
+void SSD1306::drawText(int x, int y, const char* str) {
+    while (*str) {
+        drawChar(x, y, *str++);
+        x += 6; // 5 px glyph + 1 px spacing
+    }
+}
 
 
 
@@ -124,28 +146,33 @@ void SSD1306_I2C::writeCmd(uint8_t cmd) {
     if (err != ESP_OK) ESP_LOGW(OLED_TAG, "writeCmd 0x%02X err=%d", cmd, (int)err);
 }
 
-// --- writeData: chunk into <= 32B blocks; same START, control, data, STOP each block
 void SSD1306_I2C::writeData(const uint8_t* data, size_t len) {
-    constexpr size_t CHUNK = 32;                 // safe chunk size
-    while (len) {
+    constexpr size_t CHUNK = 32;  // safe size for ESP-IDF I2C
+    while (len > 0) {
         size_t n = len > CHUNK ? CHUNK : len;
-        i2c_cmd_handle_t c = i2c_cmd_link_create();
-        i2c_master_start(c);
-        i2c_master_write_byte(c, (address << 1) | I2C_MASTER_WRITE, true);
-        i2c_master_write_byte(c, 0x40, true);    // control: Co=0, D/C#=1
-        i2c_master_write(c, data, n, true);
-        i2c_master_stop(c);
-        esp_err_t err = i2c_master_cmd_begin(port, c, pdMS_TO_TICKS(100));
-        i2c_cmd_link_delete(c);
+
+        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+        i2c_master_start(cmd);
+        i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
+        i2c_master_write_byte(cmd, 0x40, true);  // control byte: Co=0, D/C#=1
+        i2c_master_write(cmd, data, n, true);
+        i2c_master_stop(cmd);
+
+        esp_err_t err = i2c_master_cmd_begin(port, cmd, pdMS_TO_TICKS(100));
+        i2c_cmd_link_delete(cmd);
+
         if (err != ESP_OK) {
-            ESP_LOGW(OLED_TAG, "writeData err=%d", (int)err);
-            break;                               // avoid tight retry loop
+            ESP_LOGW("SSD1306", "writeData chunk err=%d", (int)err);
+            break;
         }
+
         data += n;
-        len  -= n;
-        vTaskDelay(0);                           // yield so IDLE runs
+        len -= n;
+
+        vTaskDelay(0);  // yield so IDLE task runs (prevents watchdog)
     }
 }
+
 
 // ===================== SPI =====================
 

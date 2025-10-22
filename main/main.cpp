@@ -45,23 +45,18 @@ extern "C" void app_main(void)
     display.fill(0);
     display.show();
 
-    // ---- Demo loop ----
+    ESP_LOGI(TAG, "Drawing cross pattern");
+
+    display.drawText(0, 0,  "Hello");
+    display.drawText(0, 10, "World 1");
+    display.drawText(0, 20, "World 2");
+    display.drawText(0, 30, "World 3");
+    display.drawText(0, 40, "World 4");
+    display.drawText(0, 50, "World 5");
+
+    display.show();
+
     while (true) {
-        ESP_LOGI(TAG, "All black");
-        display.fill(0);
-        display.show();
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-        ESP_LOGI(TAG, "All white");
-        display.fill(1);
-        display.show();
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-        ESP_LOGI(TAG, "Diagonal");
-        display.fill(0);
-        for (int i = 0; i < 64; ++i)
-            display.drawPixel(i, i, true);
-        display.show();
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
