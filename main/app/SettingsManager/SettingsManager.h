@@ -4,6 +4,7 @@
 #include <esp_log.h>
 #include "ServiceProvider.h"
 #include "InitGuard.h"
+#include "TickContext.h"
 
 class SettingsManager
 {
@@ -18,6 +19,7 @@ public:
     SettingsManager &operator=(SettingsManager &&) = default;
 
     void Init();
+    void Tick(TickContext& ctx) {}
 
     template <typename FUNC>
     void Access(FUNC func)

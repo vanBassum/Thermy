@@ -4,6 +4,7 @@
 #include "RecursiveMutex.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
+#include "TickContext.h"
 
 class WifiManager
 {
@@ -13,10 +14,10 @@ public:
     explicit WifiManager(ServiceProvider &ctx);
 
     void Init();
+    void Tick(TickContext& ctx) {}
     bool Connect(TickType_t timeoutTicks = portMAX_DELAY);
     void Disconnect();
     bool IsConnected() const;
-    void Loop();
 
 private:
     ServiceProvider &_ctx;
@@ -27,7 +28,6 @@ private:
     // Cached configuration
     bool wifiEnabled = false;
     wifi_config_t wifiConfig{};
-    uint32_t lastRetryMs = 0;
 
     bool LoadSettings();
     bool WaitForConnection(uint32_t timeoutMs);

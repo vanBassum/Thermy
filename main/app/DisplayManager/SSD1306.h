@@ -24,8 +24,8 @@ public:
     void fill(uint8_t color);
     void drawPixel(int x, int y, bool color);
     void show();
-    void drawChar(int x, int y, char c);
-    void drawText(int x, int y, const char *str);
+    void drawChar(int x, int y, char c, int size=1);
+    void drawText(int x, int y, const char *str, int size=1);
 
 protected:
     virtual void writeCmd(uint8_t cmd) = 0;

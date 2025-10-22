@@ -23,6 +23,7 @@ set(INCLUDE_DIRS_LIST
     .
     "app"
     "lib"
+    "app/DataManager"
     "app/DisplayManager"
     "app/InfluxManager"
     "app/SensorManager"

@@ -6,6 +6,7 @@
 #include "DateTime.h"
 #include "esp_log.h"
 #include "SettingsManager.h"
+#include "TickContext.h"
 
 class InfluxManager
 {
@@ -15,6 +16,8 @@ public:
     explicit InfluxManager(ServiceProvider &ctx);
 
     void Init();
+    void Tick(TickContext& ctx) {}
+
     bool Write(const char *measurement, float value, const DateTime &timestamp, TickType_t timeout);
     InfluxSession BeginWrite(const char *measurement, const DateTime &timestamp, TickType_t timeout)
     {

@@ -42,7 +42,7 @@ void WifiManager::Init()
     initGuard.SetReady();
 
     // Automatically connect after initialization
-    Connect(pdMS_TO_TICKS(8000));
+    Connect(0);
 }
 
 bool WifiManager::LoadSettings()
@@ -155,21 +155,3 @@ void WifiManager::WifiEventHandler(void *arg, esp_event_base_t event_base,
         self->connected = true;
     }
 }
-
-void WifiManager::Loop()
-{
-    if (!wifiEnabled)
-        return;
-
-    if (connected)
-        return;
-
-    uint32_t now = esp_log_timestamp();
-    if (now - lastRetryMs < 30000) // 30s between retries
-        return;
-
-    lastRetryMs = now;
-    ESP_LOGW(TAG, "Wi-Fi not connected, scheduling reconnect...");
-    esp_wifi_connect();  // non-blocking reconnect
-}
-
