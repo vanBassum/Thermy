@@ -17,7 +17,7 @@ public:
     void Init();
 
     int GetSensorCount() const { return sensorCount; }
-    bool GetTemperature(int index, float &outTemp);
+    bool GetTemperature(int index, float &outTemp, onewire_device_address_t& outAddress);
 
 private:
     ServiceProvider &_ctx;

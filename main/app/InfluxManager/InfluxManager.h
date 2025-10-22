@@ -16,6 +16,12 @@ public:
 
     void Init();
     bool Write(const char *measurement, float value, const DateTime &timestamp, TickType_t timeout);
+    InfluxSession BeginWrite(const char *measurement, const DateTime &timestamp, TickType_t timeout)
+    {
+        REQUIRE_READY(_initGuard);
+        LOCK(_mutex);
+        return _client.Measurement(measurement, timestamp, timeout);
+    }
 
 private:
     SettingsManager &settingsManager;

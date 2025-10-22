@@ -2,7 +2,7 @@
 #include "esp_check.h"
 #include "Mutex.h"
 
-#define ONEWIRE_GPIO    4
+#define ONEWIRE_GPIO    2
 
 SensorManager::SensorManager(ServiceProvider &ctx)
     : _ctx(ctx)
@@ -62,7 +62,7 @@ void SensorManager::ScanBus()
     ESP_LOGI(TAG, "Found %d DS18B20 sensor(s)", sensorCount);
 }
 
-bool SensorManager::GetTemperature(int index, float &outTemp)
+bool SensorManager::GetTemperature(int index, float &outTemp, onewire_device_address_t& outAddress)
 {
     if (index < 0 || index >= sensorCount)
         return false;
@@ -75,7 +75,7 @@ bool SensorManager::GetTemperature(int index, float &outTemp)
     }
 
     vTaskDelay(pdMS_TO_TICKS(750)); // wait for conversion
-
+    ds18b20_get_device_address(sensors[index], &outAddress);
     err = ds18b20_get_temperature(sensors[index], &outTemp);
     if (err == ESP_OK)
     {
