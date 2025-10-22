@@ -22,16 +22,6 @@ extern "C" void app_main(void)
 
     appContext.Init();
 
-    esp_pm_config_t pm_config = {
-        .max_freq_mhz = 120,   // 
-        .min_freq_mhz = 10,    // 
-        .light_sleep_enable = true
-    };
-    ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
-
-    // Optional: make Wi-Fi also sleep between beacons
-    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
-
     const Milliseconds defaultTickInterval = Millis(1000);
 
     uint64_t totalSleepTime = 0;
