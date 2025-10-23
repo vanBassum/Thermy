@@ -110,7 +110,7 @@ void InfluxManager::Work()
         task.NotifyWait(&events);
         _state.Set(State::Working);
 
-        InfluxSession session = _client.CreateSession(pdMS_TO_TICKS(5000));
+        InfluxSession session = _client.CreateSession(pdMS_TO_TICKS(10000));
         int entriesWritten = 0;
 
         dataManager.ForEach([&](DataEntry &entry)

@@ -7,7 +7,7 @@
 
 class HttpClientRequest
 {
-    inline static constexpr const char* TAG = "HttpRequest";
+    inline static constexpr const char* TAG = "HttpClientRequest";
 public:
     HttpClientRequest() = default;
     ~HttpClientRequest();

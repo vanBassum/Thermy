@@ -1,6 +1,7 @@
 #include "HttpClientRequestStream.h"
 #include "esp_err.h"
 #include <cstdio>
+#include <cassert>
 
 void HttpClientRequestStream::Init(esp_http_client_handle_t client, bool chunked)
 {
@@ -10,33 +11,26 @@ void HttpClientRequestStream::Init(esp_http_client_handle_t client, bool chunked
 
 size_t HttpClientRequestStream::write(const void* data, size_t len)
 {
-    if (!_client || !data || len == 0)
-        return 0;
+    assert(_client && "Client not initialized");
+    assert(data && len > 0);
 
-    if (_chunked)
-    {
-        // --- Send chunk header in hex + CRLF
+    // For debuffing
+    printf("%.*s", (int)len, (const char*)data);
+
+    if (_chunked) {
         char header[10];
         int header_len = snprintf(header, sizeof(header), "%x\r\n", (unsigned int)len);
         esp_http_client_write(_client, header, header_len);
-
-        
-        printf("%.*s", (int)len, (const char*)data);
-
-        // --- Send actual data
         esp_http_client_write(_client, static_cast<const char*>(data), len);
-
-        // --- Send CRLF after data
         esp_http_client_write(_client, "\r\n", 2);
-    }
-    else
-    {
-        // Non-chunked direct write
+    } else {
         esp_http_client_write(_client, static_cast<const char*>(data), len);
     }
 
     return len;
 }
+
+
 
 size_t HttpClientRequestStream::read(void* buffer, size_t len)
 {
@@ -52,7 +46,7 @@ size_t HttpClientRequestStream::read(void* buffer, size_t len)
     return static_cast<size_t>(received);
 }
 
-void HttpClientRequestStream::flush()
-{
-    // esp_http_client_write() is synchronous, no explicit flush needed.
+void HttpClientRequestStream::flush() {
+    // No-op: writes are immediate, included for interface symmetry
 }
+

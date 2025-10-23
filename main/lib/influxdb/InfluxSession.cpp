@@ -11,12 +11,13 @@ enum class WritePhase
 
 InfluxSession::~InfluxSession()
 {
-    if (_initGuard.IsReady())
-    {
-        Finish();
-        _req.Close();
-    }
+    if (!_initGuard.IsReady())
+        return;
+    
+    bool ok = Finish();
+    assert(ok && "InfluxSession Finish failed in destructor");
 }
+
 
 void InfluxSession::Init(const char *url, const char *apiKey, TickType_t timeout)
 {
@@ -150,24 +151,27 @@ InfluxSession &InfluxSession::withField(const char *key, bool value)
 
 bool InfluxSession::Finish()
 {
-    if (!_initGuard.IsReady())
+    if (!_initGuard.IsReady() || _phase == WritePhase::None)
         return false;
 
     auto &stream = _req.GetStream();
     StringWriter writer(stream);
-
-    // Append timestamp (in seconds)
     writer.writeChar(' ');
     writer.writeInt64(_timestamp.UtcSeconds());
     writer.writeChar('\n');
 
-    _req.Close();
-
     int status = _req.Perform();
+    _req.Close();
     _initGuard.SetNotReady();
     _phase = WritePhase::None;
-    return (status >= 200 && status < 300);
+
+    if (status < 200 || status >= 300) {
+        ESP_LOGE(TAG, "Influx write failed, HTTP %d", status);
+        return false;
+    }
+    return true;
 }
+
 
 void InfluxSession::WriteEscaped(const char *text)
 {
@@ -176,8 +180,9 @@ void InfluxSession::WriteEscaped(const char *text)
     auto &stream = _req.GetStream();
     for (const char *p = text; *p; ++p)
     {
-        if (*p == ' ' || *p == ',' || *p == '=')
+        char c = *p;
+        if (c == ' ' || c == ',' || c == '=')
             stream.write("\\", 1);
-        stream.write(p, 1);
+        stream.write(&c, 1);
     }
 }
