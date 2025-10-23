@@ -8,6 +8,7 @@ DisplayManager::DisplayManager(ServiceProvider &ctx)
     : sensorManager(ctx.GetSensorManager())
     , wifiManager(ctx.GetWifiManager())
     , timeManager(ctx.GetTimeManager())
+    , influxManager(ctx.GetInfluxManager())
 {
 }
 
@@ -55,6 +56,10 @@ void DisplayManager::DrawIcons(SSD1306 &display)
     // --- NTP synced icon
     char ntpChar = timeManager.HasSynced() ? (char)SymbolIcon::Smyle : (char)SymbolIcon::Empty;
     display.drawChar(iconX, y+=10, ntpChar, iconStyle);
+
+    // --- Influx icon
+    char influxChar = influxManager.IsWorking() ? (char)SymbolIcon::Influx : (char)SymbolIcon::Empty;
+    display.drawChar(iconX, y+=10, influxChar, iconStyle);
 
 }
 

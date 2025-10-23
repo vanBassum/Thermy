@@ -1,6 +1,5 @@
 #pragma once
-#include "HttpRequest.h"
-#include "HttpRequestStream.h"
+#include "HttpClientRequest.h"
 #include "DateTime.h"
 #include "StringWriter.h"
 #include "InitGuard.h"
@@ -44,7 +43,7 @@ public:
     bool Finish();
 
 private:
-    HttpRequest _req;
+    HttpClientRequest _req;
     DateTime _timestamp;
     InitGuard _initGuard;
     WritePhase _phase = WritePhase::None;

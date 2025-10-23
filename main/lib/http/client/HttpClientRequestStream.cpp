@@ -1,14 +1,14 @@
-#include "HttpRequestStream.h"
+#include "HttpClientRequestStream.h"
 #include "esp_err.h"
 #include <cstdio>
 
-void HttpRequestStream::Init(esp_http_client_handle_t client, bool chunked)
+void HttpClientRequestStream::Init(esp_http_client_handle_t client, bool chunked)
 {
     _client = client;
     _chunked = chunked;
 }
 
-size_t HttpRequestStream::write(const void* data, size_t len)
+size_t HttpClientRequestStream::write(const void* data, size_t len)
 {
     if (!_client || !data || len == 0)
         return 0;
@@ -21,7 +21,7 @@ size_t HttpRequestStream::write(const void* data, size_t len)
         esp_http_client_write(_client, header, header_len);
 
         
-        //printf("%.*s", (int)len, (const char*)data);
+        printf("%.*s", (int)len, (const char*)data);
 
         // --- Send actual data
         esp_http_client_write(_client, static_cast<const char*>(data), len);
@@ -38,7 +38,7 @@ size_t HttpRequestStream::write(const void* data, size_t len)
     return len;
 }
 
-size_t HttpRequestStream::read(void* buffer, size_t len)
+size_t HttpClientRequestStream::read(void* buffer, size_t len)
 {
     if (!_client || !buffer || len == 0)
         return 0;
@@ -52,21 +52,7 @@ size_t HttpRequestStream::read(void* buffer, size_t len)
     return static_cast<size_t>(received);
 }
 
-void HttpRequestStream::flush()
+void HttpClientRequestStream::flush()
 {
     // esp_http_client_write() is synchronous, no explicit flush needed.
-}
-
-void HttpRequestStream::close()
-{
-    if (!_client)
-        return;
-
-    if (_chunked)
-    {
-        // --- Send final zero-length chunk
-        esp_http_client_write(_client, "0\r\n\r\n", 5);
-    }
-
-    _client = nullptr;
 }

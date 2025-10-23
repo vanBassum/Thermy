@@ -8,9 +8,12 @@ set(SOURCE_FILES_LIST
     "app/SensorManager/SensorManager.cpp"
     "app/SettingsManager/SettingsManager.cpp"
     "app/TimeManager/TimeManager.cpp"
+    "app/WebManager/WebManager.cpp"
     "app/WifiManager/WifiManager.cpp"
-    "lib/http/HttpRequest.cpp"
-    "lib/http/HttpRequestStream.cpp"
+    "lib/http/client/HttpClientRequest.cpp"
+    "lib/http/client/HttpClientRequestStream.cpp"
+    "lib/http/server/HttpServerResponseStream.cpp"
+    "lib/http/server/HttpWebServer.cpp"
     "lib/influxdb/InfluxSession.cpp"
     "lib/nvs/NvsStorage.cpp"
     "lib/string/StringConverter.cpp"
@@ -29,6 +32,7 @@ set(INCLUDE_DIRS_LIST
     "app/SensorManager"
     "app/SettingsManager"
     "app/TimeManager"
+    "app/WebManager"
     "app/WifiManager"
     "app/DisplayManager/Fonts"
     "app/SettingsManager/Helpers"
@@ -40,6 +44,8 @@ set(INCLUDE_DIRS_LIST
     "lib/settings"
     "lib/string"
     "lib/system"
+    "lib/http/client"
+    "lib/http/server"
 )
 
 set(REQUIRED_COMPONENTS_LIST
@@ -49,6 +55,7 @@ set(REQUIRED_COMPONENTS_LIST
     esp_netif
     driver
     esp_http_client
+    esp_http_server 
     onewire_bus
     esp_timer
     esp-tls

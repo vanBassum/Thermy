@@ -15,7 +15,7 @@
 class InfluxManager
 {
     inline static constexpr const char *TAG = "InfluxManager";
-    inline static constexpr Milliseconds INFLUX_WRITE_INTERVAL = Millis(30000);
+    inline static constexpr Milliseconds INFLUX_WRITE_INTERVAL = Millis(10000);
 
     enum class State
     {
@@ -28,6 +28,7 @@ public:
 
     void Init();
     void Tick(TickContext &ctx);
+    bool IsWorking() const { return _state.Get() == State::Working; }
 
 private:
     SettingsManager &settingsManager;

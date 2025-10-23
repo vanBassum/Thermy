@@ -7,6 +7,7 @@ enum class SymbolIcon : char
     Empty = 48,
     Wifi,
     Smyle,
+    Influx,
 };
 
 // --------------------------------------------------------
@@ -15,13 +16,14 @@ enum class SymbolIcon : char
 // Font: font8x8sym
 // Width: 8
 // Height: 8
-// Chars: 48..50 (3)
+// Chars: 48..51 (4)
 // --------------------------------------------------------
 
-static const uint8_t font8x8sym_charset[3][8] = {
+static const uint8_t font8x8sym_charset[4][8] = {
     { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }, // '0' (48)
     { 0x04, 0x02, 0x09, 0x65, 0x65, 0x09, 0x02, 0x04 }, // '1' (49)
     { 0x3C, 0x42, 0x95, 0xA1, 0xA1, 0x95, 0x42, 0x3C }, // '2' (50)
+    { 0x74, 0x32, 0x51, 0x81, 0x81, 0x8A, 0x4C, 0x2E }, // '3' (51)
 };
 
 static const FontDef font8x8sym = {
@@ -29,5 +31,5 @@ static const FontDef font8x8sym = {
     .width = 8,
     .height = 8,
     .firstChar = 48,
-    .lastChar = 50,
+    .lastChar = 51,
 };

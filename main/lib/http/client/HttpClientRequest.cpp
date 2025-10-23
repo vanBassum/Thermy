@@ -1,15 +1,16 @@
-#include "HttpRequest.h"
+#include "HttpClientRequest.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"
 
-HttpRequest::~HttpRequest()
+
+HttpClientRequest::~HttpClientRequest()
 {
     Close();
 }
 
-void HttpRequest::Init(const char *url, esp_http_client_method_t method, TickType_t timeoutTicks)
+void HttpClientRequest::Init(const char *url, esp_http_client_method_t method, TickType_t timeoutTicks)
 {
     memset(&_config, 0, sizeof(_config));
     _config.url = url;
@@ -25,7 +26,7 @@ void HttpRequest::Init(const char *url, esp_http_client_method_t method, TickTyp
     }
 }
 
-bool HttpRequest::Open()
+bool HttpClientRequest::Open()
 {
     if (_opened)
         return true;
@@ -47,13 +48,11 @@ bool HttpRequest::Open()
     return true;
 }
 
-// HttpRequest.cpp
-void HttpRequest::Close()
+void HttpClientRequest::Close()
 {
     if (!_opened)
         return;
 
-    _stream.close();
     esp_http_client_close(_client);
     esp_http_client_cleanup(_client);
 
@@ -62,23 +61,29 @@ void HttpRequest::Close()
 }
 
 
-void HttpRequest::SetHeader(const char* key, const char* value)
+void HttpClientRequest::SetHeader(const char* key, const char* value)
 {
     if (_client)
         esp_http_client_set_header(_client, key, value);
 }
 
-int HttpRequest::GetStatusCode() const
+int HttpClientRequest::GetStatusCode() const
 {
     if (!_client)
         return -1;
     return esp_http_client_get_status_code(_client);
 }
 
-int HttpRequest::Perform()
+int HttpClientRequest::Perform()
 {
     if (!_opened || !_client)
         return -1;
+
+
+    // --- Send final zero-length chunk
+    _stream.flush();
+    esp_http_client_write(_client, "0\r\n\r\n", 5);
+    
 
     esp_err_t err = esp_http_client_perform(_client);
     if (err != ESP_OK) {
@@ -88,7 +93,7 @@ int HttpRequest::Perform()
 
     int status = esp_http_client_get_status_code(_client);
 
-    if (status >= 400) {
+    if (status != 400) {
         char buf[256];
         int n = esp_http_client_read(_client, buf, sizeof(buf) - 1);
         if (n > 0) {
