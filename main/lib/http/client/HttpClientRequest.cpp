@@ -74,47 +74,49 @@ int HttpClientRequest::Perform()
     assert(_opened && "Request not opened");
 
     _stream.flush();
+    esp_http_client_write(_client, "0\r\n\r\n", 5);
 
     esp_err_t err = esp_http_client_perform(_client);
     if (err != ESP_OK)
     {
-        if (err == ESP_ERR_HTTP_EAGAIN)
-        {
+        // Distinguish common cases (do NOT read the body here!)
+        if (err == ESP_ERR_HTTP_EAGAIN) {
             ESP_LOGW(TAG, "HTTP perform timeout (ESP_ERR_HTTP_EAGAIN)");
-            return -2; // special case for timeout
+            return -2; // timeout / try again
+        }
+        if (err == ESP_ERR_NOT_SUPPORTED) {
+            ESP_LOGE(TAG, "HTTP perform failed: Authentication challenge not supported (ESP_ERR_NOT_SUPPORTED)");
+            return -3; // auth challenge we didn't satisfy (e.g., 401 with WWW-Authenticate)
         }
 
         ESP_LOGE(TAG, "HTTP perform failed: %s", esp_err_to_name(err));
-        char buf[128];
-        int n = esp_http_client_read(_client, buf, sizeof(buf) - 1);
-        if (n > 0)
-        {
-            buf[n] = '\0';
-            ESP_LOGE(TAG, "Partial error response: %s", buf);
-        }
-        return -1;
+        return -1; // generic transport/protocol failure
     }
 
+    // Only now is it safe to query status and possibly read body
     int status = esp_http_client_get_status_code(_client);
 
-    if (status <= 0 || status >= 400)
-    {
-        char buf[256];
-        int n = esp_http_client_read(_client, buf, sizeof(buf) - 1);
-        if (n > 0)
-        {
-            buf[n] = '\0';
-            ESP_LOGW(TAG, "HTTP error response (%d): %s", status, buf);
-        }
-        else
-        {
-            ESP_LOGW(TAG, "HTTP error (%d): no response body", status);
-        }
+    // Treat invalid/missing status as error
+    if (status <= 0) {
+        ESP_LOGE(TAG, "No valid HTTP status after perform");
         return -1;
     }
 
-    if (status < 200 || status > 299)
-    {
+    // HTTP error classes (4xx/5xx): body may or may not be available; read is safe now
+    if (status >= 400) {
+        char buf[256];
+        int n = esp_http_client_read(_client, buf, sizeof(buf) - 1);
+        if (n > 0) {
+            buf[n] = '\0';
+            ESP_LOGW(TAG, "HTTP error response (%d): %s", status, buf);
+        } else {
+            ESP_LOGW(TAG, "HTTP error (%d): no response body", status);
+        }
+        return status; // return the actual HTTP status so caller can branch on 401, 429, 5xx, etc.
+    }
+
+    // Non-2xx success (e.g. 202) is often fine; log for visibility
+    if (status < 200 || status > 299) {
         ESP_LOGW(TAG, "Unexpected HTTP status: %d", status);
     }
 

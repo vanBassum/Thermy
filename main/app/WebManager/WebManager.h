@@ -3,6 +3,9 @@
 #include "rtos.h"
 #include "DateTime.h"
 #include "TickContext.h"
+#include "HttpWebServer.h"
+#include "TestEndpoint.h"
+#include "FileGetEndpoint.h"
 
 class WebManager
 {
@@ -18,4 +21,9 @@ public:
 private:
     InitGuard initGuard;
     RecursiveMutex mutex;
+
+    HttpWebServer server;
+    TestEndpoint testEndpoint;
+    FileGetEndpoint fileGetEndpoint{"/fat"};
+
 };

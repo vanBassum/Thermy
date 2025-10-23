@@ -9,6 +9,8 @@ class DataManager;
 class InfluxManager;
 class TimeManager;
 class SettingsManager;
+class WebManager;
+class FtpManager;
 
 class ServiceProvider
 {
@@ -21,4 +23,6 @@ public:
     virtual InfluxManager&    GetInfluxManager() = 0;
     virtual TimeManager&     GetTimeManager() = 0;
     virtual SettingsManager& GetSettingsManager() = 0;
+    virtual WebManager&      GetWebManager() = 0;
+    virtual FtpManager&      GetFtpManager() = 0;
 };

@@ -17,7 +17,7 @@ public:
     void start();
     void stop();
     void EnableCors();
-    void registerHandler(const char *uri, httpd_method_t method, HttpServerEndpoint &handler);
+    void registerEndpoint(const char *uri, httpd_method_t method, HttpServerEndpoint &handler);
 
 private:
     httpd_handle_t server = nullptr;

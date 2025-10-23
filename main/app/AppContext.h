@@ -9,7 +9,9 @@
 #include "InfluxManager.h"
 #include "DataManager.h"
 #include "TickContext.h"
-
+#include "WebManager.h"
+#include "FatFsDriver.h"
+#include "FtpManager.h"
 
 class AppContext : public ServiceProvider
 {
@@ -30,15 +32,21 @@ public:
     InfluxManager &GetInfluxManager() override { return influxManager; }
     TimeManager &GetTimeManager() override { return timeManager; }
     SettingsManager &GetSettingsManager() override { return settingsManager; }
+    WebManager &GetWebManager() override { return webManager; }
+    FtpManager &GetFtpManager() override { return ftpManager; }
 
     void Init()
     {
+        fatFsDriver.Init(); 
         GetSettingsManager().Init();
         GetDisplayManager().Init();
         GetWifiManager().Init();
         GetTimeManager().Init();
         GetSensorManager().Init();
         GetInfluxManager().Init();
+        GetWebManager().Init();
+        GetFtpManager().init();
+        
     }
 
     void Tick(TickContext& ctx)
@@ -49,9 +57,14 @@ public:
         MeasureTick("TimeManager",     [&]() { GetTimeManager().Tick(ctx); });
         MeasureTick("SensorManager",   [&]() { GetSensorManager().Tick(ctx); });
         MeasureTick("InfluxManager",   [&]() { GetInfluxManager().Tick(ctx); });
+        MeasureTick("WebManager",      [&]() { GetWebManager().Tick(ctx); });
+        MeasureTick("FtpManager",      [&]() { GetFtpManager().Tick(ctx); });
+
+
     }
 
 private:
+    FatfsDriver fatFsDriver{"/fat", "fat"};
     SensorManager sensorManager{*this};
     DisplayManager displayManager{*this};
     WifiManager wifiManager{*this};
@@ -60,6 +73,8 @@ private:
     InfluxManager influxManager{*this};
     TimeManager timeManager{*this};
     SettingsManager settingsManager{*this};
+    WebManager webManager{*this};
+    FtpManager ftpManager{*this};
 
 
     template<typename F>

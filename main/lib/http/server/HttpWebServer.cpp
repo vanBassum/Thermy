@@ -1,4 +1,6 @@
 #include "HttpWebServer.h"
+#include "HttpServerResponseStream.h"
+
 
 HttpWebServer::HttpWebServer()
 {
@@ -14,7 +16,7 @@ void HttpWebServer::start()
     if (server)
         return;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.max_open_sockets = 8;  // allow 8 concurrent sockets
+    config.max_open_sockets = 4;  // allow concurrent sockets
     config.max_uri_handlers = 16; // more endpoints
 
     config.uri_match_fn = httpd_uri_match_wildcard;
@@ -40,7 +42,7 @@ void HttpWebServer::EnableCors()
     httpd_register_uri_handler(server, &api_options);
 }
 
-void HttpWebServer::registerHandler(const char *uri, httpd_method_t method, HttpServerEndpoint &handler)
+void HttpWebServer::registerEndpoint(const char *uri, httpd_method_t method, HttpServerEndpoint &handler)
 {
     httpd_uri_t config = {
         .uri = uri,
@@ -61,7 +63,8 @@ esp_err_t HttpWebServer::trampoline(httpd_req_t *req)
 {
     set_cors_headers(req); // Always inject CORS headers
     auto *h = static_cast<HttpServerEndpoint *>(req->user_ctx);
-    return h->handle(req);
+    esp_err_t result = h->handle(req);
+    return result;
 }
 
 esp_err_t HttpWebServer::api_options_handler(httpd_req_t *req)

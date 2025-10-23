@@ -36,9 +36,12 @@ set(INCLUDE_DIRS_LIST
     "app/WifiManager"
     "app/DisplayManager/Fonts"
     "app/SettingsManager/Helpers"
+    "app/WebManager/Endpoints"
     "lib/common"
+    "lib/fatfs"
     "lib/http"
     "lib/influxdb"
+    "lib/json"
     "lib/nvs"
     "lib/rtos"
     "lib/settings"
@@ -59,6 +62,7 @@ set(REQUIRED_COMPONENTS_LIST
     onewire_bus
     esp_timer
     esp-tls
+    fatfs
 )
 
 # Register component with ESP-IDF
