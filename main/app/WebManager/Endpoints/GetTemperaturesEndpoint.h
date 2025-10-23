@@ -46,6 +46,7 @@ public:
         });
         bufferedStream.flush();
         stream.flush();
+        httpd_resp_send_chunk(req, NULL, 0);
         return ESP_OK;
     }
 
