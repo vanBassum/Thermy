@@ -36,6 +36,7 @@ void InfluxManager::Init()
 
 void InfluxManager::Tick(TickContext &ctx)
 {
+    return;
     REQUIRE_READY(_initGuard);
     LOCK(_mutex);
 

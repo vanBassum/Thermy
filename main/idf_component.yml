@@ -16,3 +16,4 @@ dependencies:
   #   public: true
   espressif/onewire_bus: ^1.0.4
   espressif/ds18b20: ^0.2.0
+  espressif/cJSON: ^1.7.18

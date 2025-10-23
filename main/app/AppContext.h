@@ -12,6 +12,7 @@
 #include "WebManager.h"
 #include "FatFsDriver.h"
 #include "FtpManager.h"
+#include "WebUpdateManager.h"
 
 class AppContext : public ServiceProvider
 {
@@ -34,6 +35,7 @@ public:
     SettingsManager &GetSettingsManager() override { return settingsManager; }
     WebManager &GetWebManager() override { return webManager; }
     FtpManager &GetFtpManager() override { return ftpManager; }
+    WebUpdateManager &GetWebUpdateManager() override { return webUpdateManager; }
 
     void Init()
     {
@@ -46,6 +48,7 @@ public:
         GetInfluxManager().Init();
         GetWebManager().Init();
         GetFtpManager().init();
+        GetWebUpdateManager().Init();
         
     }
 
@@ -59,6 +62,7 @@ public:
         MeasureTick("InfluxManager",   [&]() { GetInfluxManager().Tick(ctx); });
         MeasureTick("WebManager",      [&]() { GetWebManager().Tick(ctx); });
         MeasureTick("FtpManager",      [&]() { GetFtpManager().Tick(ctx); });
+        MeasureTick("WebUpdateManager",[&]() { GetWebUpdateManager().Tick(ctx); });
 
 
     }
@@ -75,6 +79,7 @@ private:
     SettingsManager settingsManager{*this};
     WebManager webManager{*this};
     FtpManager ftpManager{*this};
+    WebUpdateManager webUpdateManager{*this};
 
 
     template<typename F>
