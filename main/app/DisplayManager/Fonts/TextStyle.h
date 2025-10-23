@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include "FontDef.h"
 #include "font5x7.h"
-#include "font8x8_symbols.h"
 
 struct TextStyle
 {

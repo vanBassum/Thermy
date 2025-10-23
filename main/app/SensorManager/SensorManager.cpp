@@ -126,6 +126,9 @@ void SensorManager::TriggerTemperatureConversions()
 
     esp_err_t err;
 
+    if(sensorCount == 0)
+        return; // No sensors to trigger
+
     // Reset the OneWire bus
     err = onewire_bus_reset(bus);
     if (err != ESP_OK)

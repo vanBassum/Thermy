@@ -2,6 +2,7 @@
 #include "WifiManager.h"
 #include "esp_log.h"
 #include "esp_netif.h"
+#include "font8x8sym.h"
 
 DisplayManager::DisplayManager(ServiceProvider &ctx)
     : sensorManager(ctx.GetSensorManager())
@@ -41,7 +42,7 @@ void DisplayManager::Tick(TickContext &ctx)
 
 void DisplayManager::DrawIcons(SSD1306 &display)
 {
-    TextStyle iconStyle(&Font8x8_Symbols, 1, true);
+    TextStyle iconStyle(&font8x8sym, 1, true);
 
     // Left column of icons
     const int iconX = 72-10;
@@ -52,7 +53,7 @@ void DisplayManager::DrawIcons(SSD1306 &display)
     display.drawChar(iconX, y, wifiChar, iconStyle);
 
     // --- NTP synced icon
-    char ntpChar = timeManager.HasSynced() ? (char)SymbolIcon::NtpSynced : (char)SymbolIcon::Empty;
+    char ntpChar = timeManager.HasSynced() ? (char)SymbolIcon::Smyle : (char)SymbolIcon::Empty;
     display.drawChar(iconX, y+=10, ntpChar, iconStyle);
 
 }
