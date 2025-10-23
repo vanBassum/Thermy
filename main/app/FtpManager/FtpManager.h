@@ -1,9 +1,9 @@
 #pragma once
 #include "esp_log.h"
-#include "InitGuard.h"
 #include "FtpServer.h"
-#include "Task.h"
+#include "rtos.h"
 #include "TickContext.h"
+#include "ServiceProvider.h"
 
 
 
@@ -12,7 +12,7 @@ class FtpManager {
     constexpr static const char* rootPath = "/fat";
 
 public:
-    FtpManager() = default;
+    FtpManager(ServiceProvider& provider){}
     ~FtpManager() = default;
     FtpManager(const FtpManager &) = delete;
     FtpManager &operator=(const FtpManager &) = delete;

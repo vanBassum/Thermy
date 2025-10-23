@@ -103,8 +103,8 @@ void FtpServer::ftp_cmd_list(Client &c, const char *args) {
     if (dir) {
         struct dirent *entry;
         while ((entry = readdir(dir)) != NULL) {
-            char line[256];
-            char fullpath[256];
+            char line[512];
+            char fullpath[512];
             struct stat st;
 
             snprintf(fullpath, sizeof(fullpath), "%s/%s", fullbase, entry->d_name);
@@ -278,7 +278,7 @@ void FtpServer::ftp_cmd_cwd(Client &c, const char *args) {
 
     struct stat st;
     if (stat(newpath, &st) == 0 && S_ISDIR(st.st_mode)) {
-        char newcwd[sizeof(c.cwd)];
+        char newcwd[sizeof(c.cwd) + strlen(args) + 1];
 
         if (args[0] == '/') {
             snprintf(newcwd, sizeof(newcwd), "%s", args);
