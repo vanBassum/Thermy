@@ -16,6 +16,9 @@ public:
     void field(const char* key, const char* v) {
         writeComma(); writer.writeString(key); writeColon(); writer.writeString(v);
     }
+    void field(const char* key, float v) {
+        writeComma(); writer.writeString(key); writeColon(); writer.writeFloat(v);
+    }
     void field(const char* key, bool v) {
         writeComma(); writer.writeString(key); writeColon(); writer.writeBool(v);
     }

@@ -17,8 +17,9 @@ public:
     {
         httpd_resp_set_type(req, "application/json");
         HttpServerResponseStream stream(req);
+        BufferedStream<128> bufferedStream(stream);
         
-        JsonArrayWriter::create(stream, [&](JsonArrayWriter &array)
+        JsonArrayWriter::create(bufferedStream, [&](JsonArrayWriter &array)
         {
             dataManager.ForEach([&](DataEntry &entry){
 
@@ -36,16 +37,14 @@ public:
                     char timestampStr[25] = {};
                     entry.timestamp.ToStringUtc(timestampStr, sizeof(timestampStr), DateTime::FormatIso8601);
 
-                    char valueStr[32] = {};
-                    snprintf(valueStr, sizeof(valueStr), "%.2f", valuePair->value.asFloat);
-
                     obj.field("address", addressStr);
                     obj.field("timestamp", timestampStr);
-                    obj.field("temperature", valueStr);
+                    obj.field("temperature", valuePair->value.asFloat);
                 });
 
             });
         });
+        bufferedStream.flush();
         stream.flush();
         return ESP_OK;
     }
