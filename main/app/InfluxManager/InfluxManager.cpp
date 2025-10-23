@@ -141,7 +141,7 @@ void InfluxManager::Work()
         });
 
         session.Finish();
-        ESP_LOGI(TAG, "InfluxDB write complete, %d entries written.", entriesWritten);
+        //ESP_LOGI(TAG, "InfluxDB write complete, %d entries written.", entriesWritten);
 
 
         _state.Set(State::Idle);

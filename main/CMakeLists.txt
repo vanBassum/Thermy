@@ -8,7 +8,6 @@ set(SOURCE_FILES_LIST
     "app/SensorManager/SensorManager.cpp"
     "app/SettingsManager/SettingsManager.cpp"
     "app/TimeManager/TimeManager.cpp"
-    "app/WebManager/WebManager.cpp"
     "app/WifiManager/WifiManager.cpp"
     "lib/ftp/FtpServer.cpp"
     "lib/http/client/HttpClientRequest.cpp"
