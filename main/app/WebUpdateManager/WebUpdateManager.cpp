@@ -6,14 +6,19 @@
 #include <sys/stat.h>
 #include "esp_crt_bundle.h"
 
-
 // --- Tiny streaming TAR extractor ---
-class TarExtractor {
+class TarExtractor
+{
 public:
-    TarExtractor(const char* rootPath) : root(rootPath) {}
-    ~TarExtractor() { if (current) fclose(current); }
+    TarExtractor(const char *rootPath) : root(rootPath) {}
+    ~TarExtractor()
+    {
+        if (current)
+            fclose(current);
+    }
 
-    void feed(const uint8_t* data, size_t len) {
+    void feed(const uint8_t *data, size_t len)
+    {
         buffer.insert(buffer.end(), data, data + len);
         process();
     }
@@ -23,11 +28,12 @@ public:
 private:
     std::string root;
     std::vector<uint8_t> buffer;
-    FILE* current = nullptr;
+    FILE *current = nullptr;
     size_t remaining = 0;
     size_t padding = 0;
 
-    struct TarHeader {
+    struct TarHeader
+    {
         char name[100];
         char mode[8];
         char uid[8];
@@ -39,16 +45,21 @@ private:
         char linkname[100];
     };
 
-    void process(bool final = false) {
-        while (true) {
+    void process(bool final = false)
+    {
+        while (true)
+        {
             // Write remaining data for current file
-            if (remaining > 0 && buffer.size() > 0) {
+            if (remaining > 0 && buffer.size() > 0)
+            {
                 size_t chunk = std::min(buffer.size(), remaining);
                 fwrite(buffer.data(), 1, chunk, current);
                 buffer.erase(buffer.begin(), buffer.begin() + chunk);
                 remaining -= chunk;
-                if (remaining == 0) {
-                    if (padding) {
+                if (remaining == 0)
+                {
+                    if (padding)
+                    {
                         size_t skip = std::min(buffer.size(), padding);
                         buffer.erase(buffer.begin(), buffer.begin() + skip);
                         padding -= skip;
@@ -59,10 +70,12 @@ private:
                 continue;
             }
 
-            if (buffer.size() < 512) break;
+            if (buffer.size() < 512)
+                break;
 
-            TarHeader* hdr = (TarHeader*)buffer.data();
-            if (hdr->name[0] == '\0') {
+            TarHeader *hdr = (TarHeader *)buffer.data();
+            if (hdr->name[0] == '\0')
+            {
                 buffer.clear();
                 break;
             }
@@ -73,7 +86,8 @@ private:
 
             // Create directories if needed
             auto pos = path.find_last_of('/');
-            if (pos != std::string::npos) {
+            if (pos != std::string::npos)
+            {
                 std::string dir = path.substr(0, pos);
                 mkdir(dir.c_str(), 0777);
             }
@@ -81,7 +95,8 @@ private:
             current = fopen(path.c_str(), "wb");
             buffer.erase(buffer.begin(), buffer.begin() + 512);
             size_t chunk = std::min(buffer.size(), filesize);
-            if (chunk > 0) {
+            if (chunk > 0)
+            {
                 fwrite(buffer.data(), 1, chunk, current);
                 buffer.erase(buffer.begin(), buffer.begin() + chunk);
             }
@@ -95,7 +110,8 @@ private:
 WebUpdateManager::WebUpdateManager(ServiceProvider &ctx)
     : settingsManager(ctx.GetSettingsManager()) {}
 
-void WebUpdateManager::Init() {
+void WebUpdateManager::Init()
+{
     if (initGuard.IsReady())
         return;
 
@@ -103,19 +119,13 @@ void WebUpdateManager::Init() {
     initGuard.SetReady();
 }
 
-void WebUpdateManager::Tick(TickContext &ctx) {
+void WebUpdateManager::Tick(TickContext &ctx)
+{
     REQUIRE_READY(initGuard);
     LOCK(mutex);
 
-    if(lastCheck != 0){
-        if (!ctx.ElapsedAndReset(lastCheck, CHECK_INTERVAL))
-            return;
-    }
-    else
-    {
-        lastCheck = NowMs();
-    }
-
+    if (!ctx.ElapsedAndReset(lastCheck, CHECK_INTERVAL))
+        return;
 
     ESP_LOGI(TAG, "Checking for web bundle update...");
 
@@ -136,50 +146,99 @@ void WebUpdateManager::Tick(TickContext &ctx) {
 
     ESP_LOGI(TAG, "Local web bundle hash: %s", localHash.empty() ? "<none>" : localHash.c_str());
 
-    if (HashChanged(localHash, remoteHash)) {
+    if (HashChanged(localHash, remoteHash))
+    {
         ESP_LOGI(TAG, "New web bundle detected, updating...");
-        if (DownloadAndExtractBundle()) {
+        if (DownloadAndExtractBundle())
+        {
             WriteLocalManifest(remoteJson);
             ESP_LOGI(TAG, "Web bundle updated successfully");
-        } else {
+        }
+        else
+        {
             ESP_LOGW(TAG, "Failed to update web bundle");
         }
-    } else {
+    }
+    else
+    {
         ESP_LOGI(TAG, "Web bundle up to date");
     }
 }
 
-bool WebUpdateManager::FetchManifest(std::string &jsonOut) {
+bool WebUpdateManager::FetchManifest(std::string &jsonOut)
+{
+    const char *TAG = "WebUpdateManager";
+
+    ESP_LOGI(TAG, "Fetching manifest from GitHub...");
+
     esp_http_client_config_t config = {
         .url = "https://github.com/vanBassum/Thermy-ui/releases/download/latest/manifest.json",
         .timeout_ms = 10000,
-        .crt_bundle_attach = esp_crt_bundle_attach,
+        .disable_auto_redirect = false,
+        .crt_bundle_attach = esp_crt_bundle_attach, // ✅ HTTPS verification
     };
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-    if (!client) return false;
 
-    if (esp_http_client_open(client, 0) != ESP_OK) {
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (!client)
+    {
+        ESP_LOGE(TAG, "Failed to initialize HTTP client");
+        return false;
+    }
+
+    esp_err_t err = esp_http_client_open(client, 0);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to open connection: %s", esp_err_to_name(err));
         esp_http_client_cleanup(client);
         return false;
     }
 
+    ESP_LOGI(TAG, "Connected to: %s", esp_http_client_get_url(client));
+    int status_code = esp_http_client_get_status_code(client);
+    int64_t content_length = esp_http_client_get_content_length(client);
+    ESP_LOGI(TAG, "HTTP status: %d, content length: %lld", status_code, content_length);
+
     char buf[512];
     int total = 0;
-    while (true) {
+
+    while (true)
+    {
         int len = esp_http_client_read(client, buf, sizeof(buf));
-        if (len <= 0) break;
+        if (len < 0)
+        {
+            ESP_LOGE(TAG, "HTTP read error: %d", len);
+            break;
+        }
+        if (len == 0)
+        {
+            ESP_LOGI(TAG, "HTTP read complete");
+            break;
+        }
+
         jsonOut.append(buf, len);
         total += len;
     }
 
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
-    return total > 0;
+
+    if (total > 0)
+    {
+        ESP_LOGI(TAG, "Successfully fetched manifest (%d bytes)", total);
+        return true;
+    }
+    else
+    {
+        ESP_LOGW(TAG, "Manifest fetch failed or empty response");
+        return false;
+    }
 }
 
-bool WebUpdateManager::ParseManifest(const std::string &json, std::string &remoteHash) {
+bool WebUpdateManager::ParseManifest(const std::string &json, std::string &remoteHash)
+{
     cJSON *root = cJSON_Parse(json.c_str());
-    if (!root) return false;
+    if (!root)
+        return false;
     cJSON *sha = cJSON_GetObjectItem(root, "sha256");
     if (sha && cJSON_IsString(sha))
         remoteHash = sha->valuestring;
@@ -187,9 +246,11 @@ bool WebUpdateManager::ParseManifest(const std::string &json, std::string &remot
     return !remoteHash.empty();
 }
 
-bool WebUpdateManager::ReadLocalHash(std::string &hashOut) {
+bool WebUpdateManager::ReadLocalHash(std::string &hashOut)
+{
     FILE *f = fopen("/fat/manifest.json", "r");
-    if (!f) return false;
+    if (!f)
+        return false;
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     rewind(f);
@@ -199,15 +260,18 @@ bool WebUpdateManager::ReadLocalHash(std::string &hashOut) {
     return ParseManifest(content, hashOut);
 }
 
-bool WebUpdateManager::WriteLocalManifest(const std::string &json) {
+bool WebUpdateManager::WriteLocalManifest(const std::string &json)
+{
     FILE *f = fopen("/fat/manifest.json", "w");
-    if (!f) return false;
+    if (!f)
+        return false;
     fwrite(json.data(), 1, json.size(), f);
     fclose(f);
     return true;
 }
 
-bool WebUpdateManager::HashChanged(const std::string &local, const std::string &remote) {
+bool WebUpdateManager::HashChanged(const std::string &local, const std::string &remote)
+{
     return local != remote;
 }
 
@@ -216,12 +280,15 @@ bool WebUpdateManager::DownloadAndExtractBundle()
     esp_http_client_config_t cfg = {
         .url = "https://github.com/vanBassum/Thermy-ui/releases/download/latest/webbundle.tar",
         .timeout_ms = 60000,
+        .disable_auto_redirect = false,
         .crt_bundle_attach = esp_crt_bundle_attach,
     };
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
-    if (!client) return false;
+    if (!client)
+        return false;
 
-    if (esp_http_client_open(client, 0) != ESP_OK) {
+    if (esp_http_client_open(client, 0) != ESP_OK)
+    {
         esp_http_client_cleanup(client);
         return false;
     }
@@ -230,9 +297,11 @@ bool WebUpdateManager::DownloadAndExtractBundle()
     TarExtractor tar("/fat");
 
     bool ok = true;
-    while (true) {
-        int n = esp_http_client_read(client, (char*)buf, sizeof(buf));
-        if (n <= 0) break;
+    while (true)
+    {
+        int n = esp_http_client_read(client, (char *)buf, sizeof(buf));
+        if (n <= 0)
+            break;
         tar.feed(buf, n);
     }
 

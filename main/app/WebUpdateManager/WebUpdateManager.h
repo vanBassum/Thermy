@@ -9,7 +9,7 @@
 class WebUpdateManager
 {
     inline static constexpr const char *TAG = "WebUpdateManager";
-    inline static constexpr Milliseconds CHECK_INTERVAL = 3600000; // 1 hour
+    inline static constexpr Milliseconds CHECK_INTERVAL = 30000;//3600000; // 1 hour
 
 public:
     explicit WebUpdateManager(ServiceProvider &ctx);
