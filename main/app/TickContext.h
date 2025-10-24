@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <esp_timer.h>
+#include "esp_log.h"
 
 typedef uint64_t Milliseconds;
 
@@ -17,6 +18,7 @@ static inline Milliseconds NowMs()
 
 class TickContext
 {
+    inline static constexpr const char* TAG = "TickContext";
 public:
     explicit TickContext(Milliseconds now, Milliseconds initialIntervalMs)
         : _timeSinceBootMs(now),
@@ -31,9 +33,9 @@ public:
     inline void RequestNoSleep() { _preventSleep = true; }
 
     // ---- Safe time checks ----
-    inline bool HasElapsed(Milliseconds timerVar, Milliseconds interval)
+    inline bool HasElapsed(Milliseconds startTime, Milliseconds interval)
     {
-        if ((_timeSinceBootMs - timerVar) >= interval)
+        if ((_timeSinceBootMs - startTime) >= interval)
             return true;
         
         // In case we didnt sleep long enough, this will adjust the tick to very short.
@@ -41,7 +43,7 @@ public:
             _interval = interval;
         }
         
-        return true;
+        return false;
     }
 
     inline void MarkExecuted(Milliseconds &timerVar, Milliseconds interval)

@@ -62,6 +62,5 @@ private:
             entry.pairs[2] = { DataKey::Value,    sensorManager.GetTemperature(i) };
             Append(entry);
         }
-        ESP_LOGI(TAG, "Logged %d temperature entries.", cnt);
     }
 };
