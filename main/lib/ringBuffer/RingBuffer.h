@@ -70,7 +70,6 @@ public:
     Iterator GetIterator()
     {
         LOCK(mutex);
-        ESP_LOGI(TAG, " Creating iterator: readPtr=%zu, writePtr=%zu", readPtr, writePtr);
         size_t startIndex = readPtr;
         uint32_t hash = Hash(entries[startIndex]);
         return Iterator(*this, startIndex, hash);
@@ -139,11 +138,11 @@ protected:
         if (hash != Hash(entries[index]))
             return false;
 
-        size_t next = (index + 1) % MAX_ENTRIES;
-        if (next == writePtr)
+        index++;
+        index = index % MAX_ENTRIES;
+        if (index == writePtr)
             return false; // end reached
 
-        index = next;
         hash = Hash(entries[index]);
         return true;
     }

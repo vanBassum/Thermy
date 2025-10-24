@@ -31,9 +31,9 @@ public:
     inline void RequestNoSleep() { _preventSleep = true; }
 
     // ---- Safe time checks ----
-    inline bool HasElapsed(Milliseconds startTime, Milliseconds interval)
+    inline bool HasElapsed(Milliseconds timerVar, Milliseconds interval)
     {
-        if ((_timeSinceBootMs - startTime) >= interval)
+        if ((_timeSinceBootMs - timerVar) >= interval)
             return true;
         
         // In case we didnt sleep long enough, this will adjust the tick to very short.

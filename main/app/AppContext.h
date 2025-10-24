@@ -41,12 +41,14 @@ public:
         GetSettingsManager().Init();
         GetDisplayManager().Init();
         GetWifiManager().Init();
+        GetDataManager().Init();
         GetTimeManager().Init();
         GetSensorManager().Init();
         GetInfluxManager().Init();
         GetWebManager().Init();
         GetFtpManager().init();
         GetWebUpdateManager().Init();
+
         
     }
 private:

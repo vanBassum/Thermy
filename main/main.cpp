@@ -33,6 +33,7 @@ static SimpleStats g_stats[] = {
     SimpleStats("Web"),
     SimpleStats("FTP"),
     SimpleStats("WebUpdate"),
+    SimpleStats("Data"),
 };
 
 constexpr size_t NUM_STATS = sizeof(g_stats) / sizeof(g_stats[0]);
@@ -49,6 +50,7 @@ void TickAllServices(TickContext &ctx, SimpleStats stats[])
     stats[6].AddValue(MeasureTick([&]() { appContext.GetWebManager().Tick(ctx); }));
     stats[7].AddValue(MeasureTick([&]() { appContext.GetFtpManager().Tick(ctx); }));
     stats[8].AddValue(MeasureTick([&]() { appContext.GetWebUpdateManager().Tick(ctx); }));
+    stats[9].AddValue(MeasureTick([&]() { appContext.GetDataManager().Tick(ctx); }));
 }
 
 
