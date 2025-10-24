@@ -1,8 +1,10 @@
 #pragma once
 #include "rtos.h"
-#include "HashUtils.h"
 #include <string.h>
 #include <assert.h>
+#include "HashUtils.h"
+
+
 
 template<typename T, size_t MAX_ENTRIES>
 class RingBuffer
@@ -11,6 +13,11 @@ class RingBuffer
     static_assert(std::is_trivially_copyable_v<T>,
               "RingBuffer<T> requires T to be trivially copyable (no pointers, virtual methods, or dynamic memory)");
 
+
+    uint32_t Hash(const T& obj)
+    {
+        return HashUtils::FastHash(obj);
+    }
 
 public:
     RingBuffer() = default;
@@ -63,8 +70,9 @@ public:
     Iterator GetIterator()
     {
         LOCK(mutex);
+        ESP_LOGI(TAG, " Creating iterator: readPtr=%zu, writePtr=%zu", readPtr, writePtr);
         size_t startIndex = readPtr;
-        uint32_t hash = HashUtils::FastHash(reinterpret_cast<uint8_t*>(&entries[startIndex]), sizeof(T));
+        uint32_t hash = Hash(entries[startIndex]);
         return Iterator(*this, startIndex, hash);
     }
 
@@ -83,8 +91,22 @@ protected:
         LOCK(mutex);
         if (index >= MAX_ENTRIES)
             return false;
+        bool valid;
+        if (writePtr > readPtr)
+        {
+            // Non-wrapped case: [readPtr .. writePtr)
+            valid = (index >= readPtr && index < writePtr);
+        }
+        else
+        {
+            // Wrapped case: [readPtr .. MAX_ENTRIES) ∪ [0 .. writePtr)
+            valid = (index >= readPtr) || (index < writePtr);
+        }
+
+        if (!valid)
+            return false; // Outside readable range
         memcpy(&out, &entries[index], sizeof(T));
-        outHash = HashUtils::FastHash(reinterpret_cast<const uint8_t*>(&entries[index]), sizeof(T));
+        outHash = Hash(entries[index]);
         return true;
     }
 
@@ -94,7 +116,7 @@ protected:
         if (index >= MAX_ENTRIES)
             return false;
 
-        uint32_t currentHash = HashUtils::FastHash(reinterpret_cast<const uint8_t*>(&entries[index]), sizeof(T));
+        uint32_t currentHash = Hash(entries[index]);
         if (hash != currentHash)
             return false; // modified/overwritten
 
@@ -107,14 +129,14 @@ protected:
         }
 
         memcpy(&entries[index], &value, sizeof(T));
-        hash = HashUtils::FastHash(reinterpret_cast<const uint8_t*>(&entries[index]), sizeof(T));
+        hash = Hash(entries[index]);
         return true;
     }
 
     bool AdvanceIndex(size_t& index, uint32_t& hash)
     {
         LOCK(mutex);
-        if (hash != HashUtils::FastHash(reinterpret_cast<const uint8_t*>(&entries[index]), sizeof(T)))
+        if (hash != Hash(entries[index]))
             return false;
 
         size_t next = (index + 1) % MAX_ENTRIES;
@@ -122,7 +144,7 @@ protected:
             return false; // end reached
 
         index = next;
-        hash = HashUtils::FastHash(reinterpret_cast<const uint8_t*>(&entries[index]), sizeof(T));
+        hash = Hash(entries[index]);
         return true;
     }
 
@@ -131,7 +153,7 @@ protected:
         LOCK(mutex);
         if (index >= MAX_ENTRIES)
             return 0;
-        return HashUtils::FastHash(reinterpret_cast<const uint8_t*>(&entries[index]), sizeof(T));
+        return Hash(entries[index]);
     }
 
 private:

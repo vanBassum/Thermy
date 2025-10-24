@@ -1,6 +1,5 @@
 #pragma once
 #include "IMutex.h"
-#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -15,7 +14,7 @@ class ContextLock
 public:
     ContextLock(const IMutex& mutex) : mutex(mutex)
     {
-        taken = mutex.Take(pdMS_TO_TICKS(10000));
+        taken = mutex.Take(pdMS_TO_TICKS(500));
         assert(taken);
     }
     
