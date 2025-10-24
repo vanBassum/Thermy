@@ -106,6 +106,104 @@ private:
     }
 };
 
+
+#define MANIFEST_URL_MAX 256
+#define BUNDLE_URL_MAX   256
+
+struct WebUpdateUrls
+{
+    char manifestUrl[MANIFEST_URL_MAX];
+    char bundleUrl[BUNDLE_URL_MAX];
+    bool success;
+};
+
+WebUpdateUrls FetchReleaseUrls()
+{
+    const char *TAG = "WebUpdateManager";
+    WebUpdateUrls result = {};
+    result.success = false;
+
+    ESP_LOGI(TAG, "Fetching latest release info from GitHub...");
+
+    static char response_buffer[2048]; // Enough for JSON
+    esp_http_client_config_t config = {};
+        config.url = "https://api.github.com/repos/vanBassum/Thermy-ui/releases/latest";
+        config.transport_type = HTTP_TRANSPORT_OVER_SSL;
+        config.crt_bundle_attach = esp_crt_bundle_attach;
+        config.timeout_ms = 20000;
+        config.buffer_size_tx = 2048;
+        config.buffer_size = 2048;
+        config.user_data = response_buffer;
+    
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_http_client_set_header(client, "User-Agent", "ESP32-WebUpdater");
+
+    esp_err_t err = esp_http_client_perform(client);
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
+        esp_http_client_cleanup(client);
+        return result;
+    }
+
+    int status_code = esp_http_client_get_status_code(client);
+    if (status_code != 200)
+    {
+        ESP_LOGE(TAG, "HTTP status %d", status_code);
+        esp_http_client_cleanup(client);
+        return result;
+    }
+
+    int content_length = esp_http_client_get_content_length(client);
+    int read_len = esp_http_client_read_response(client, response_buffer, sizeof(response_buffer) - 1);
+    esp_http_client_cleanup(client);
+
+    if (read_len <= 0)
+    {
+        ESP_LOGE(TAG, "Failed to read response");
+        return result;
+    }
+
+    response_buffer[read_len] = '\0';
+    ESP_LOGI(TAG, "Got release JSON (%d bytes)", read_len);
+
+    // Parse URLs
+    const char *manifestKey = "\"name\":\"manifest.json\"";
+    const char *bundleKey = "\"name\":\"webbundle.tar\"";
+    const char *manifestPos = strstr(response_buffer, manifestKey);
+    const char *bundlePos = strstr(response_buffer, bundleKey);
+
+    if (manifestPos)
+    {
+        const char *start = strstr(manifestPos, "https://");
+        const char *end = strchr(start, '"');
+        if (start && end)
+        {
+            size_t len = end - start;
+            if (len >= sizeof(result.manifestUrl)) len = sizeof(result.manifestUrl) - 1;
+            memcpy(result.manifestUrl, start, len);
+            result.manifestUrl[len] = '\0';
+        }
+    }
+
+    if (bundlePos)
+    {
+        const char *start = strstr(bundlePos, "https://");
+        const char *end = strchr(start, '"');
+        if (start && end)
+        {
+            size_t len = end - start;
+            if (len >= sizeof(result.bundleUrl)) len = sizeof(result.bundleUrl) - 1;
+            memcpy(result.bundleUrl, start, len);
+            result.bundleUrl[len] = '\0';
+        }
+    }
+
+    result.success = result.manifestUrl[0] && result.bundleUrl[0];
+    return result;
+}
+
 // --- Manager Implementation ---
 WebUpdateManager::WebUpdateManager(ServiceProvider &ctx)
     : settingsManager(ctx.GetSettingsManager()) {}
@@ -121,7 +219,6 @@ void WebUpdateManager::Init()
 
 void WebUpdateManager::Tick(TickContext &ctx)
 {
-    return;
     REQUIRE_READY(initGuard);
     LOCK(mutex);
 
@@ -129,6 +226,20 @@ void WebUpdateManager::Tick(TickContext &ctx)
         return;
 
     ESP_LOGI(TAG, "Checking for web bundle update...");
+
+    WebUpdateUrls urls = FetchReleaseUrls();
+    if (urls.success)
+    {
+        ESP_LOGI("Updater", "Manifest: %s", urls.manifestUrl);
+        ESP_LOGI("Updater", "Bundle: %s", urls.bundleUrl);
+        // You can now call FetchManifest(urls.manifestUrl, ...)
+    }
+    else
+    {
+        ESP_LOGE("Updater", "Failed to retrieve release URLs");
+    }
+
+
 
     std::string remoteJson;
     if (!FetchManifest(remoteJson))
@@ -280,7 +391,7 @@ bool WebUpdateManager::HashChanged(const std::string &local, const std::string &
 bool WebUpdateManager::DownloadAndExtractBundle()
 {
     esp_http_client_config_t cfg = {
-        .url = "https://github.com/vanBassum/Thermy-ui/releases/download/latest/webbundle.tar",
+        .url = "https://raw.githubusercontent.com/vanBassum/Thermy-ui/main/webbundle.tar",
         .timeout_ms = 60000,
         .disable_auto_redirect = false,
         .crt_bundle_attach = esp_crt_bundle_attach,
