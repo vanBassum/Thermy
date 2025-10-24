@@ -17,7 +17,6 @@
 class AppContext : public ServiceProvider
 {
     constexpr static const char *TAG = "AppContext";
-    constexpr static Milliseconds TICK_WARNING_THRESHOLD = Millis(500);
 public:
     AppContext() = default;
     ~AppContext() = default;
@@ -28,7 +27,6 @@ public:
     SensorManager &GetSensorManager() override { return sensorManager; }
     DisplayManager &GetDisplayManager() override { return displayManager; }
     WifiManager &GetWifiManager() override { return wifiManager; }
-    // PowerManager&    GetPowerManager() override    { return powerManager; }
     DataManager &GetDataManager() override { return dataManager; }
     InfluxManager &GetInfluxManager() override { return influxManager; }
     TimeManager &GetTimeManager() override { return timeManager; }
@@ -54,17 +52,33 @@ public:
 
     void Tick(TickContext& ctx)
     {
-        MeasureTick("SettingsManager", [&]() { GetSettingsManager().Tick(ctx); });
-        MeasureTick("DisplayManager",  [&]() { GetDisplayManager().Tick(ctx); });
-        MeasureTick("WifiManager",     [&]() { GetWifiManager().Tick(ctx); });
-        MeasureTick("TimeManager",     [&]() { GetTimeManager().Tick(ctx); });
-        MeasureTick("SensorManager",   [&]() { GetSensorManager().Tick(ctx); });
-        MeasureTick("InfluxManager",   [&]() { GetInfluxManager().Tick(ctx); });
-        MeasureTick("WebManager",      [&]() { GetWebManager().Tick(ctx); });
-        MeasureTick("FtpManager",      [&]() { GetFtpManager().Tick(ctx); });
-        MeasureTick("WebUpdateManager",[&]() { GetWebUpdateManager().Tick(ctx); });
+        Milliseconds tSettingsManager = MeasureTick( [&]() { GetSettingsManager().Tick(ctx); });
+        Milliseconds tDisplayManager = MeasureTick( [&]() { GetDisplayManager().Tick(ctx); });
+        Milliseconds tWifiManager = MeasureTick( [&]() { GetWifiManager().Tick(ctx); });
+        Milliseconds tTimeManager = MeasureTick( [&]() { GetTimeManager().Tick(ctx); });
+        Milliseconds tSensorManager = MeasureTick ([&]() { GetSensorManager().Tick(ctx); });
+        Milliseconds tInfluxManager = MeasureTick( [&]() { GetInfluxManager().Tick(ctx); });
+        Milliseconds tWebManager = MeasureTick( [&]() { GetWebManager().Tick(ctx); });
+        Milliseconds tFtpManager = MeasureTick( [&]() { GetFtpManager().Tick(ctx); });
+        Milliseconds tWebUpdateManager = MeasureTick( [&]() { GetWebUpdateManager().Tick(ctx); });
+        Milliseconds total = tSettingsManager + tDisplayManager + tWifiManager + tTimeManager + tSensorManager + tInfluxManager + tWebManager + tFtpManager + tWebUpdateManager;
 
-
+        if (total > ctx.TickInterval())
+        {
+            ESP_LOGW(TAG, "Tick overrun: \r\n - total=%llums interval=%llums  \n\t - SettingsManager=%llums\n\t - DisplayManager=%llums\n\t - WifiManager=%llums\n\t - TimeManager=%llums\n\t - SensorManager=%llums\n\t - InfluxManager=%llums\n\t - WebManager=%llums\n\t - FtpManager=%llums\n\t - WebUpdateManager=%llums",
+                     total,
+                     ctx.TickInterval(),
+                     tSettingsManager,
+                     tDisplayManager,
+                     tWifiManager,
+                     tTimeManager,
+                     tSensorManager,
+                     tInfluxManager,
+                     tWebManager,
+                     tFtpManager,
+                     tWebUpdateManager);
+            
+        }
     }
 
 private:
@@ -72,7 +86,6 @@ private:
     SensorManager sensorManager{*this};
     DisplayManager displayManager{*this};
     WifiManager wifiManager{*this};
-    // PowerManager    powerManager{*this};
     DataManager dataManager{*this};
     InfluxManager influxManager{*this};
     TimeManager timeManager{*this};
@@ -83,16 +96,12 @@ private:
 
 
     template<typename F>
-    void MeasureTick(const char* name, F&& func)
+    Milliseconds MeasureTick(F&& func)
     {
         Milliseconds start = NowMs();
         func();
         Milliseconds elapsed = NowMs() - start;
-
-        if (elapsed > TICK_WARNING_THRESHOLD)
-        {
-            ESP_LOGW("AppContext", "%s Tick took %lld ms", name, elapsed);
-        }
+        return elapsed;
     }
 };
 
