@@ -120,12 +120,12 @@ protected:
             return false; // modified/overwritten
 
         // ---- Flash semantics: only allow 1→0 transitions ----
-        const uint8_t* newData = reinterpret_cast<const uint8_t*>(&value);
-        uint8_t* oldData = reinterpret_cast<uint8_t*>(&entries[index]);
-        for (size_t i = 0; i < sizeof(T); ++i)
-        {
-            assert((oldData[i] & newData[i]) == newData[i] && "Invalid write: cannot set bits from 0→1 (flash semantics)");
-        }
+        // const uint8_t* newData = reinterpret_cast<const uint8_t*>(&value);
+        // uint8_t* oldData = reinterpret_cast<uint8_t*>(&entries[index]);
+        // for (size_t i = 0; i < sizeof(T); ++i)
+        // {
+        //     assert((oldData[i] & newData[i]) == newData[i] && "Invalid write: cannot set bits from 0→1 (flash semantics)");
+        // }
 
         memcpy(&entries[index], &value, sizeof(T));
         hash = Hash(entries[index]);

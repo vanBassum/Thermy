@@ -9,7 +9,7 @@
 class DataManager
 {
     inline static constexpr const char *TAG = "DataManager";
-    constexpr static const size_t MAX_ENTRIES = 200;
+    constexpr static const size_t MAX_ENTRIES = 1000;
     constexpr static const Milliseconds TEMPERATURE_LOG_INTERVAL = Millis(2500);
 
 public:

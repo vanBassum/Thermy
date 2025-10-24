@@ -13,12 +13,18 @@
 #include "FatFsDriver.h"
 #include "FtpManager.h"
 #include "WebUpdateManager.h"
+#include "SimpleStats.h"
 
 class AppContext : public ServiceProvider
 {
     constexpr static const char *TAG = "AppContext";
 public:
-    AppContext() = default;
+    AppContext(SimpleStats* stats, int cnt)
+        : g_stats(stats), num_stats(cnt)
+    {
+        assert(stats != nullptr);
+        assert(cnt > 0);
+    }
     ~AppContext() = default;
 
     AppContext(const AppContext &) = delete;
@@ -51,6 +57,10 @@ public:
 
         
     }
+
+    SimpleStats* GetStats() override { return g_stats; }
+    int GetStatsCount() override { return num_stats; }
+
 private:
     FatfsDriver fatFsDriver{"/fat", "fat"};
     SensorManager sensorManager{*this};
@@ -63,6 +73,10 @@ private:
     WebManager webManager{*this};
     FtpManager ftpManager{*this};
     WebUpdateManager webUpdateManager{*this};
+
+    SimpleStats* g_stats;
+    int num_stats;
+
 };
 
 

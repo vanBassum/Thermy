@@ -12,6 +12,7 @@ class SettingsManager;
 class WebManager;
 class FtpManager;
 class WebUpdateManager;
+class SimpleStats;
 
 class ServiceProvider
 {
@@ -27,4 +28,10 @@ public:
     virtual WebManager &GetWebManager() = 0;
     virtual FtpManager &GetFtpManager() = 0;
     virtual WebUpdateManager &GetWebUpdateManager() = 0;
+
+
+
+    virtual SimpleStats* GetStats() = 0;
+    virtual int GetStatsCount() = 0;
+    
 };

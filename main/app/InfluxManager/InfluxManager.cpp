@@ -100,7 +100,6 @@ void InfluxManager::SendLogCode_Temperature(InfluxSession &session, DataEntry &e
 
 void InfluxManager::Work()
 {
-    return;
     InfluxClient _client;
     _client.Init(influxBaseUrl, influxApiKey, influxOrganisation, influxBucket);
 

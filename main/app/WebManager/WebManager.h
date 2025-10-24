@@ -7,6 +7,7 @@
 #include "TestEndpoint.h"
 #include "FileGetEndpoint.h"
 #include "GetTemperaturesEndpoint.h"
+#include "GetStatsEndpoint.h"
 
 class WebManager
 {
@@ -24,6 +25,8 @@ public:
         server.start();
         server.registerEndpoint("/test", HTTP_GET, testEndpoint);
         server.registerEndpoint("/api/temperatures", HTTP_GET, getTemperaturesEndpoint);
+        server.registerEndpoint("/api/stats", HTTP_GET, getStatsEndpoint);
+
         server.registerEndpoint("/*", HTTP_GET, fileGetEndpoint);
         server.EnableCors();
     }
@@ -42,4 +45,5 @@ private:
     TestEndpoint testEndpoint;
     FileGetEndpoint fileGetEndpoint{"/fat"};
     GetTemperaturesEndpoint getTemperaturesEndpoint{ctx};
+    GetStatsEndpoint getStatsEndpoint{ctx};
 };

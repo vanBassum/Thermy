@@ -23,6 +23,8 @@ public:
 
     void AddValue(double x)
     {
+        if(x == 0)
+            return;
         _last = x;
 
         if (_count == 0)

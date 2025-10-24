@@ -11,7 +11,7 @@
 #include "SimpleStats.h"
 
 constexpr const char *TAG = "Main";
-AppContext appContext;
+
 
 // ---- MeasureTick helper ----
 template <typename F>
@@ -37,6 +37,8 @@ static SimpleStats g_stats[] = {
 };
 
 constexpr size_t NUM_STATS = sizeof(g_stats) / sizeof(g_stats[0]);
+
+AppContext appContext(g_stats, NUM_STATS);
 
 // ---- Tick all services and collect stats ----
 void TickAllServices(TickContext &ctx, SimpleStats stats[])
@@ -95,7 +97,6 @@ extern "C" void app_main(void)
     appContext.Init();
 
     const Milliseconds defaultTickInterval = Millis(1000);
-    Milliseconds reportCounter = 0;
 
     while (true)
     {
@@ -106,24 +107,14 @@ extern "C" void app_main(void)
         Milliseconds elapsed = NowMs() - start;
 
         Milliseconds interval = ctx.TickInterval();
-        Milliseconds remaining = (elapsed < interval) ? (interval - elapsed) : 0;
+        Milliseconds remaining = (elapsed < interval) ? (interval - elapsed) : portTICK_PERIOD_MS; // minimum delay
 
         if (elapsed > interval)
         {
             ESP_LOGW(TAG, "Tick overrun! elapsed=%llums interval=%llums", elapsed, interval);
             ReportStatistics(g_stats, NUM_STATS);
         }
-
-        if (remaining < portTICK_PERIOD_MS)
-            remaining = portTICK_PERIOD_MS; // minimum delay
-
+        
         vTaskDelay(pdMS_TO_TICKS(remaining));
-
-        reportCounter += elapsed + remaining;
-        if (reportCounter >= Millis(60000))
-        {
-            ReportStatistics(g_stats, NUM_STATS);
-            reportCounter = 0;
-        }
     }
 }
