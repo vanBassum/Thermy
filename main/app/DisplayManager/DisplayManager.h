@@ -14,7 +14,7 @@
 class DisplayManager
 {
     inline static constexpr const char *TAG = "DisplayManager";
-    inline static constexpr Milliseconds DISPLAY_UPDATE_INTERVAL = Millis(1000);
+    inline static constexpr Milliseconds DISPLAY_UPDATE_INTERVAL = Millis(250);
 
 public:
     explicit DisplayManager(ServiceProvider &ctx);
@@ -31,6 +31,7 @@ private:
     Mutex mutex;
     DisplayDriver driver;
     Milliseconds lastDisplayUpdate;
+    int rotator = 0;
 
     void DrawIcons(SSD1306 &display);
     void DrawSensorTemperatures(SSD1306 &display);

@@ -18,47 +18,45 @@ static inline Milliseconds NowMs()
 class TickContext
 {
 public:
-    explicit TickContext(Milliseconds now, Milliseconds defaultTickIntervalMs)
+    explicit TickContext(Milliseconds now, Milliseconds initialIntervalMs)
         : _timeSinceBootMs(now),
-          _tickIntervalMs(defaultTickIntervalMs)
+          _interval(initialIntervalMs)
     {
     }
 
     // ---- Accessors ----
     inline Milliseconds TimeSinceBoot() const { return _timeSinceBootMs; }
-    inline Milliseconds TickInterval() const { return _tickIntervalMs; }
+    inline Milliseconds TickInterval() const { return _interval; }
     inline bool PreventSleepRequested() const { return _preventSleep; }
+    inline void RequestNoSleep() { _preventSleep = true; }
 
     // ---- Safe time checks ----
-    inline bool ElapsedAndReset(Milliseconds &timerVar, Milliseconds interval) const
+    inline bool HasElapsed(Milliseconds startTime, Milliseconds interval)
     {
-        if ((_timeSinceBootMs - timerVar) >= interval)
-        {
-            timerVar = _timeSinceBootMs;
+        if ((_timeSinceBootMs - startTime) >= interval)
             return true;
+        
+        // In case we didnt sleep long enough, this will adjust the tick to very short.
+        if (interval < _interval) {
+            _interval = interval;
         }
-        return false;
+        
+        return true;
     }
 
-    inline bool HasElapsed(Milliseconds startTime, Milliseconds interval) const
+    inline void MarkExecuted(Milliseconds &timerVar, Milliseconds interval)
     {
-        return (_timeSinceBootMs - startTime) >= interval;
-    }
-
-    // ---- Tick control ----
-    inline void PreventSleep() { _preventSleep = true; }
-
-    inline void RequestFasterTick(Milliseconds interval)
-    {
-        if (interval < _tickIntervalMs)
-            _tickIntervalMs = interval;
+        if (interval < _interval) {
+            _interval = interval;
+        }
+        timerVar = _timeSinceBootMs;
     }
 
     static inline Milliseconds NowMs() { return ::NowMs(); }
 
 private:
     const Milliseconds _timeSinceBootMs;
-    Milliseconds _tickIntervalMs;
+    Milliseconds _interval;  // The shortest delay requested by any service (this tick)
     bool _preventSleep = false;
 };
 

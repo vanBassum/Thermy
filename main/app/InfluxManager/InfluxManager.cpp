@@ -42,7 +42,7 @@ void InfluxManager::Tick(TickContext &ctx)
 
     if (_state.Get() == State::Working)
     {
-        ctx.PreventSleep();
+        ctx.RequestNoSleep();
         return; // Still working
     }
 
@@ -50,19 +50,18 @@ void InfluxManager::Tick(TickContext &ctx)
         return;
 
     if (!wifiManager.IsConnected()) {
-        ctx.PreventSleep(); // Prevent sleep for wifi to reconnect
+        ctx.RequestNoSleep(); // Prevent sleep for wifi to reconnect
         return;
     }
 
     if (!timeManager.IsTimeValid()){
-        ctx.PreventSleep(); // Prevent sleep for ntp to sync
+        ctx.RequestNoSleep(); // Prevent sleep for ntp to sync
         return;
     }
 
-    // Start task
     task.Notify(1);
-    _lastWriteTime = ctx.TimeSinceBoot();
-    ctx.PreventSleep();
+    ctx.MarkExecuted(_lastWriteTime, INFLUX_WRITE_INTERVAL);
+    ctx.RequestNoSleep();
 }
 
 void InfluxManager::EnsureValidTimestamp(DataEntry &entry)

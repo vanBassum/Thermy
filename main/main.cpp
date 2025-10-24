@@ -7,9 +7,79 @@
 #include "esp_timer.h"
 #include "esp_pm.h"
 #include "esp_wifi.h"
+#include "TickContext.h"
+#include "SimpleStats.h"
 
 constexpr const char *TAG = "Main";
 AppContext appContext;
+
+// ---- MeasureTick helper ----
+template <typename F>
+Milliseconds MeasureTick(F &&func)
+{
+    Milliseconds start = NowMs();
+    func();
+    return NowMs() - start;
+}
+
+// ---- Stats array ----
+static SimpleStats g_stats[] = {
+    SimpleStats("Settings"),
+    SimpleStats("Display"),
+    SimpleStats("Wifi"),
+    SimpleStats("Time"),
+    SimpleStats("Sensor"),
+    SimpleStats("Influx"),
+    SimpleStats("Web"),
+    SimpleStats("FTP"),
+    SimpleStats("WebUpdate"),
+};
+
+constexpr size_t NUM_STATS = sizeof(g_stats) / sizeof(g_stats[0]);
+
+// ---- Tick all services and collect stats ----
+void TickAllServices(TickContext &ctx, SimpleStats stats[])
+{
+    stats[0].AddValue(MeasureTick([&]() { appContext.GetSettingsManager().Tick(ctx); }));
+    stats[1].AddValue(MeasureTick([&]() { appContext.GetDisplayManager().Tick(ctx); }));
+    stats[2].AddValue(MeasureTick([&]() { appContext.GetWifiManager().Tick(ctx); }));
+    stats[3].AddValue(MeasureTick([&]() { appContext.GetTimeManager().Tick(ctx); }));
+    stats[4].AddValue(MeasureTick([&]() { appContext.GetSensorManager().Tick(ctx); }));
+    stats[5].AddValue(MeasureTick([&]() { appContext.GetInfluxManager().Tick(ctx); }));
+    stats[6].AddValue(MeasureTick([&]() { appContext.GetWebManager().Tick(ctx); }));
+    stats[7].AddValue(MeasureTick([&]() { appContext.GetFtpManager().Tick(ctx); }));
+    stats[8].AddValue(MeasureTick([&]() { appContext.GetWebUpdateManager().Tick(ctx); }));
+}
+
+
+// ---- Report all stats in a markdown-style table ----
+void ReportStatistics(SimpleStats stats[], size_t count)
+{
+    static char buf[4096];
+    char* bufPtr = buf;
+    size_t remaining = sizeof(buf);
+
+    // Write header
+    int written = SimpleStats::PrintHeader(bufPtr, remaining);
+    if (written < 0) return; // snprintf error
+    bufPtr += written;
+    remaining -= (written > 0) ? written : 0;
+
+    // Write rows
+    for (size_t i = 0; i < count && remaining > 0; ++i)
+    {
+        written = stats[i].PrintRow(bufPtr, remaining);
+        if (written < 0) break; // snprintf error
+        bufPtr += written;
+        remaining -= (written > 0) ? written : 0;
+    }
+
+    // Ensure null termination
+    *bufPtr = '\0';
+
+    ESP_LOGI(TAG, "Runtimes:\n%s", buf);
+}
+
 
 extern "C" void app_main(void)
 {
@@ -23,33 +93,35 @@ extern "C" void app_main(void)
     appContext.Init();
 
     const Milliseconds defaultTickInterval = Millis(1000);
+    Milliseconds reportCounter = 0;
 
     while (true)
     {
         Milliseconds start = NowMs();
+        TickContext ctx(start, defaultTickInterval);
 
-        TickContext tickCtx(start, defaultTickInterval);
-        appContext.Tick(tickCtx);
+        TickAllServices(ctx, g_stats);
+        Milliseconds elapsed = NowMs() - start;
 
-        Milliseconds end = NowMs();
-        Milliseconds elapsed = end - start;
+        Milliseconds interval = ctx.TickInterval();
+        Milliseconds remaining = (elapsed < interval) ? (interval - elapsed) : 0;
 
-        if (elapsed > tickCtx.TickInterval())
+        if (elapsed > interval)
         {
-            ESP_LOGW(TAG, "Tick overrun: took %llu ms, interval %llu ms",
-                     elapsed, tickCtx.TickInterval());
+            ESP_LOGW(TAG, "Tick overrun! elapsed=%llums interval=%llums", elapsed, interval);
+            ReportStatistics(g_stats, NUM_STATS);
         }
-        else if (tickCtx.PreventSleepRequested())
+
+        if (remaining < portTICK_PERIOD_MS)
+            remaining = portTICK_PERIOD_MS; // minimum delay
+
+        vTaskDelay(pdMS_TO_TICKS(remaining));
+
+        reportCounter += elapsed + remaining;
+        if (reportCounter >= Millis(60000))
         {
-            Milliseconds remaining = tickCtx.TickInterval() - elapsed;
-            vTaskDelay(pdMS_TO_TICKS(remaining)); // Just wait but stay awake
-        }
-        else
-        {
-            Milliseconds remaining = tickCtx.TickInterval() - elapsed;
-            vTaskDelay(pdMS_TO_TICKS(remaining)); // later replace with deep sleep
-            // Before we can do deep sleep, we need to move the datamanager to NVS storage (should beable to fit FLASH requirements okay)
-            // We can opt for light sleep for now to save some power
+            ReportStatistics(g_stats, NUM_STATS);
+            reportCounter = 0;
         }
     }
 }

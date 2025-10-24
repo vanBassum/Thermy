@@ -29,7 +29,7 @@ void DisplayManager::Tick(TickContext &ctx)
     REQUIRE_READY(initGuard);
     LOCK(mutex);
 
-    if (!ctx.ElapsedAndReset(lastDisplayUpdate, DISPLAY_UPDATE_INTERVAL))
+    if (!ctx.HasElapsed(lastDisplayUpdate, DISPLAY_UPDATE_INTERVAL))
         return;
 
     SSD1306 &display = driver.GetDisplay();
@@ -39,6 +39,7 @@ void DisplayManager::Tick(TickContext &ctx)
     DrawSensorTemperatures(display);
 
     display.show();
+    ctx.MarkExecuted(lastDisplayUpdate, DISPLAY_UPDATE_INTERVAL);
 }
 
 void DisplayManager::DrawIcons(SSD1306 &display)
@@ -60,6 +61,12 @@ void DisplayManager::DrawIcons(SSD1306 &display)
     // --- Influx icon
     char influxChar = influxManager.IsWorking() ? (char)SymbolIcon::Influx : (char)SymbolIcon::Empty;
     display.drawChar(iconX, y+=10, influxChar, iconStyle);
+
+    // --- Cycle tick icon
+    rotator++;
+    rotator %= 8;
+    char tickChar = (char)SymbolIcon::Rot_1 + rotator;
+    display.drawChar(iconX, y+=10, tickChar, iconStyle);
 
 }
 

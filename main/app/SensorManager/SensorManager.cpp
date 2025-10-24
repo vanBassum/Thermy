@@ -4,7 +4,6 @@
 
 SensorManager::SensorManager(ServiceProvider &ctx)
     : settingsManager(ctx.GetSettingsManager())
-    , dataManager(ctx.GetDataManager())
 {
 }
 
@@ -45,22 +44,21 @@ void SensorManager::Tick(TickContext &ctx)
     REQUIRE_READY(initGuard);
     LOCK(mutex);
 
-    bool updateTemperatures = ctx.ElapsedAndReset(lastTemperatureRead, TEMPERATURE_READ_INTERVAL);
-
-    if(updateTemperatures)
+    if(ctx.HasElapsed(lastTemperatureRead, TEMPERATURE_READ_INTERVAL))
     {
-        // Assume previous tick triggered conversions
         ReadTemperatures();
     }
 
-    if (ctx.ElapsedAndReset(lastBusScan, BUS_SCAN_INTERVAL))
+    if (ctx.HasElapsed(lastBusScan, BUS_SCAN_INTERVAL))
     {
         ScanBus();
+        ctx.MarkExecuted(lastBusScan, BUS_SCAN_INTERVAL);
     }
 
-    if (updateTemperatures)
+    if (ctx.HasElapsed(lastTemperatureRead, TEMPERATURE_READ_INTERVAL))
     {
         TriggerTemperatureConversions();
+        ctx.MarkExecuted(lastTemperatureRead, TEMPERATURE_READ_INTERVAL);
     }
 }
 
@@ -176,12 +174,5 @@ void SensorManager::ReadTemperatures()
             ESP_LOGE(TAG, "Failed to read DS18B20[%d] address: %s", index, esp_err_to_name(err));
             continue;
         }
-
-        DataEntry entry;
-        entry.timestamp = DateTime::Now();
-        entry.pairs[0] = { DataKey::LogCode, LogCode::TemperatureRead };
-        entry.pairs[1] = { DataKey::Address, (uint64_t)sensors[index].address};
-        entry.pairs[2] = { DataKey::Value, sensors[index].temperatureC };
-        dataManager.Append(entry);
     }
 }

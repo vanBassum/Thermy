@@ -8,8 +8,6 @@
 #include "ds18b20.h"
 #include "SettingsManager.h"
 #include "TickContext.h"
-#include "DataManager.h"
-
 
 struct SensorContext
 {
@@ -23,7 +21,7 @@ class SensorManager
     inline static constexpr const char *TAG = "SensorManager";
     inline static constexpr size_t MAX_SENSORS = 4;
     inline static constexpr Milliseconds BUS_SCAN_INTERVAL = 10000;
-    inline static constexpr Milliseconds TEMPERATURE_READ_INTERVAL = 1000;
+    inline static constexpr Milliseconds TEMPERATURE_READ_INTERVAL = 1000; // Conversion takes about 750ms
 
 public:
     explicit SensorManager(ServiceProvider &ctx);
@@ -36,7 +34,6 @@ public:
 
 private:
     SettingsManager &settingsManager;
-    DataManager &dataManager;
     InitGuard initGuard;
     RecursiveMutex mutex;
     Milliseconds lastBusScan = 0;

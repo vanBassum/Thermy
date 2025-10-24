@@ -121,10 +121,11 @@ void WebUpdateManager::Init()
 
 void WebUpdateManager::Tick(TickContext &ctx)
 {
+    return;
     REQUIRE_READY(initGuard);
     LOCK(mutex);
 
-    if (!ctx.ElapsedAndReset(lastCheck, CHECK_INTERVAL))
+    if (!ctx.HasElapsed(lastCheck, CHECK_INTERVAL))
         return;
 
     ESP_LOGI(TAG, "Checking for web bundle update...");
@@ -163,6 +164,7 @@ void WebUpdateManager::Tick(TickContext &ctx)
     {
         ESP_LOGI(TAG, "Web bundle up to date");
     }
+    ctx.MarkExecuted(lastCheck, CHECK_INTERVAL);
 }
 
 bool WebUpdateManager::FetchManifest(std::string &jsonOut)
@@ -193,7 +195,7 @@ bool WebUpdateManager::FetchManifest(std::string &jsonOut)
         return false;
     }
 
-    ESP_LOGI(TAG, "Connected to: %s", esp_http_client_get_url(client));
+    //ESP_LOGI(TAG, "Connected to: %s", esp_http_client_get_url(client));
     int status_code = esp_http_client_get_status_code(client);
     int64_t content_length = esp_http_client_get_content_length(client);
     ESP_LOGI(TAG, "HTTP status: %d, content length: %lld", status_code, content_length);

@@ -49,38 +49,6 @@ public:
         GetWebUpdateManager().Init();
         
     }
-
-    void Tick(TickContext& ctx)
-    {
-        Milliseconds tSettingsManager = MeasureTick( [&]() { GetSettingsManager().Tick(ctx); });
-        Milliseconds tDisplayManager = MeasureTick( [&]() { GetDisplayManager().Tick(ctx); });
-        Milliseconds tWifiManager = MeasureTick( [&]() { GetWifiManager().Tick(ctx); });
-        Milliseconds tTimeManager = MeasureTick( [&]() { GetTimeManager().Tick(ctx); });
-        Milliseconds tSensorManager = MeasureTick ([&]() { GetSensorManager().Tick(ctx); });
-        Milliseconds tInfluxManager = MeasureTick( [&]() { GetInfluxManager().Tick(ctx); });
-        Milliseconds tWebManager = MeasureTick( [&]() { GetWebManager().Tick(ctx); });
-        Milliseconds tFtpManager = MeasureTick( [&]() { GetFtpManager().Tick(ctx); });
-        Milliseconds tWebUpdateManager = MeasureTick( [&]() { GetWebUpdateManager().Tick(ctx); });
-        Milliseconds total = tSettingsManager + tDisplayManager + tWifiManager + tTimeManager + tSensorManager + tInfluxManager + tWebManager + tFtpManager + tWebUpdateManager;
-
-        if (total > ctx.TickInterval())
-        {
-            ESP_LOGW(TAG, "Tick overrun: \r\n - total=%llums interval=%llums  \n\t - SettingsManager=%llums\n\t - DisplayManager=%llums\n\t - WifiManager=%llums\n\t - TimeManager=%llums\n\t - SensorManager=%llums\n\t - InfluxManager=%llums\n\t - WebManager=%llums\n\t - FtpManager=%llums\n\t - WebUpdateManager=%llums",
-                     total,
-                     ctx.TickInterval(),
-                     tSettingsManager,
-                     tDisplayManager,
-                     tWifiManager,
-                     tTimeManager,
-                     tSensorManager,
-                     tInfluxManager,
-                     tWebManager,
-                     tFtpManager,
-                     tWebUpdateManager);
-            
-        }
-    }
-
 private:
     FatfsDriver fatFsDriver{"/fat", "fat"};
     SensorManager sensorManager{*this};
@@ -93,16 +61,6 @@ private:
     WebManager webManager{*this};
     FtpManager ftpManager{*this};
     WebUpdateManager webUpdateManager{*this};
-
-
-    template<typename F>
-    Milliseconds MeasureTick(F&& func)
-    {
-        Milliseconds start = NowMs();
-        func();
-        Milliseconds elapsed = NowMs() - start;
-        return elapsed;
-    }
 };
 
 
