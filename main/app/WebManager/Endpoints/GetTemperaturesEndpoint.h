@@ -21,28 +21,36 @@ public:
         
         JsonArrayWriter::create(bufferedStream, [&](JsonArrayWriter &array)
         {
-            dataManager.ForEach([&](DataEntry &entry){
+            DataManager::Iterator it = dataManager.GetIterator();
+            DataEntry entry;
+            while(it.ReadAndAdvance(entry))
+            {
+                // Find the logcode
+                auto logCodePair = entry.FindPair(DataKey::LogCode);
+                LogCode logCode = logCodePair ? logCodePair->value.asLogCode : LogCode::None;
 
+                if (logCode != LogCode::TemperatureRead)
+                    continue;
+
+                auto valuePair = entry.FindPair(DataKey::Value);
+                auto addressPair = entry.FindPair(DataKey::Address);
+
+                if (!valuePair || !addressPair)
+                    continue;
+                                        
+                char addressStr[17] = {};
+                snprintf(addressStr, sizeof(addressStr), "%016llX", addressPair->value.asUint64);
+
+                char timestampStr[25] = {};
+                entry.timestamp.ToStringUtc(timestampStr, sizeof(timestampStr), DateTime::FormatIso8601);
+                
                 array.withObject([&](JsonObjectWriter &obj)
                 {
-                    auto valuePair = entry.FindPair(DataKey::Value);
-                    auto addressPair = entry.FindPair(DataKey::Address);
-
-                    if (!valuePair || !addressPair)
-                        return;
-                                            
-                    char addressStr[17] = {};
-                    snprintf(addressStr, sizeof(addressStr), "%016llX", addressPair->value.asUint64);
-
-                    char timestampStr[25] = {};
-                    entry.timestamp.ToStringUtc(timestampStr, sizeof(timestampStr), DateTime::FormatIso8601);
-
                     obj.field("address", addressStr);
                     obj.field("timestamp", timestampStr);
                     obj.field("temperature", valuePair->value.asFloat);
                 });
-
-            });
+            }
         });
         bufferedStream.flush();
         stream.flush();

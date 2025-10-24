@@ -47,6 +47,7 @@ set(INCLUDE_DIRS_LIST
     "lib/influxdb"
     "lib/json"
     "lib/nvs"
+    "lib/ringBuffer"
     "lib/rtos"
     "lib/settings"
     "lib/string"

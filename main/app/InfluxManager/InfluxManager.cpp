@@ -36,7 +36,6 @@ void InfluxManager::Init()
 
 void InfluxManager::Tick(TickContext &ctx)
 {
-    return;
     REQUIRE_READY(_initGuard);
     LOCK(_mutex);
 
@@ -113,7 +112,10 @@ void InfluxManager::Work()
         InfluxSession session = _client.CreateSession(pdMS_TO_TICKS(5000));
         int entriesWritten = 0;
 
-        dataManager.ForEach([&](DataEntry &entry)
+        DataManager::Iterator it = dataManager.GetIterator();
+
+        DataEntry entry;
+        while(it.ReadAndAdvance(entry))
         {
             if(HasFlag(entry.flags, HandledFlags::WrittenToInflux))
                 return; // Already written
@@ -137,13 +139,12 @@ void InfluxManager::Work()
 
             // Mark as written
             entry.flags = SetFlag(entry.flags, HandledFlags::WrittenToInflux);
-            entriesWritten++;
-        });
+            it.Write(entry);
+        }
+
 
         session.Finish();
         //ESP_LOGI(TAG, "InfluxDB write complete, %d entries written.", entriesWritten);
-
-
         _state.Set(State::Idle);
     }
 }

@@ -11,13 +11,7 @@ enum class WritePhase
 
 InfluxSession::~InfluxSession()
 {
-    if (!_initGuard.IsReady())
-        return;
-    
-    bool ok = Finish();
-    assert(ok && "InfluxSession Finish failed in destructor");
 }
-
 
 void InfluxSession::Init(const char *url, const char *apiKey, TickType_t timeout)
 {
@@ -25,6 +19,7 @@ void InfluxSession::Init(const char *url, const char *apiKey, TickType_t timeout
         return;
 
     _req.Init(url, HTTP_METHOD_POST, timeout);
+    
 
     if (apiKey && *apiKey)
     {

@@ -41,7 +41,7 @@ private:
     RecursiveMutex _mutex;
     Milliseconds _lastWriteTime = 0;
     Synchronized<State> _state{State::Idle};
-
+    
     char influxBaseUrl[128];
     char influxApiKey[128];
     char influxOrganisation[64];
