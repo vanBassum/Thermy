@@ -14,7 +14,7 @@ class ContextLock
 public:
     ContextLock(const IMutex& mutex) : mutex(mutex)
     {
-        taken = mutex.Take(pdMS_TO_TICKS(500));
+        taken = mutex.Take(pdMS_TO_TICKS(2000));
         assert(taken);
     }
     

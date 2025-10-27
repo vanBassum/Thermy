@@ -15,7 +15,7 @@
 class DisplayManager
 {
     inline static constexpr const char *TAG = "DisplayManager";
-    inline static constexpr Milliseconds DISPLAY_UPDATE_INTERVAL = Millis(250);
+    inline static constexpr Milliseconds DISPLAY_UPDATE_INTERVAL = Millis(500);
 
 public:
     explicit DisplayManager(ServiceProvider &ctx);
