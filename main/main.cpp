@@ -50,8 +50,8 @@ void TickAllServices(TickContext &ctx, SimpleStats stats[])
     stats[3].AddValue(MeasureTick([&]() { appContext.GetTimeManager().Tick(ctx); }));
     stats[4].AddValue(MeasureTick([&]() { appContext.GetSensorManager().Tick(ctx); }));
     stats[5].AddValue(MeasureTick([&]() { appContext.GetInfluxManager().Tick(ctx); }));
-    //stats[6].AddValue(MeasureTick([&]() { appContext.GetWebManager().Tick(ctx); }));
-    //stats[7].AddValue(MeasureTick([&]() { appContext.GetFtpManager().Tick(ctx); }));
+    stats[6].AddValue(MeasureTick([&]() { appContext.GetWebManager().Tick(ctx); }));
+    stats[7].AddValue(MeasureTick([&]() { appContext.GetFtpManager().Tick(ctx); }));
     //stats[8].AddValue(MeasureTick([&]() { appContext.GetWebUpdateManager().Tick(ctx); }));
     stats[9].AddValue(MeasureTick([&]() { appContext.GetDataManager().Tick(ctx); }));
     stats[10].AddValue(MeasureTick([&]() { appContext.GetHardwareManager().Tick(ctx); }));

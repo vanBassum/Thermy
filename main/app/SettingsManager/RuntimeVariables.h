@@ -1,18 +1,17 @@
 #pragma once
 #include "settings.h"
-#include "SystemSettings.h"
-#include "RuntimeVariables.h"
+#include "secrets.h"
 
 // ======================================================
-// Root settings
+// Network settings
 // ======================================================
 
-struct RootSettings : public ISettingsGroup
+struct RuntimeVariables : public ISettingsGroup
 {
-    using ThisType = RootSettings;
+    using ThisType = RuntimeVariables;
 
-    SystemSettings system;
-    RuntimeVariables runtime;
+    // WiFi settings
+    char uiSha256[65];
 
     static const SettingsDescriptor SCHEMA[];
 
@@ -23,20 +22,20 @@ struct RootSettings : public ISettingsGroup
 // ------------------------------------------------------
 // Static schema definition
 // ------------------------------------------------------
-inline const SettingsDescriptor RootSettings::SCHEMA[] = {
-    DESCRIPTOR_GROUP("System", system),
-    DESCRIPTOR_GROUP("Runtime", runtime),
+inline const SettingsDescriptor RuntimeVariables::SCHEMA[] = {
+    DESCRIPTOR_FIELD("ui_sha256", uiSha256, ""),
 };
+
 
 // ------------------------------------------------------
 // Function implementations
 // ------------------------------------------------------
-inline const SettingsDescriptor *RootSettings::GetSettingsSchema() const
+inline const SettingsDescriptor *RuntimeVariables::GetSettingsSchema() const
 {
     return SCHEMA;
 }
 
-inline int RootSettings::GetSettingsCount() const
+inline int RuntimeVariables::GetSettingsCount() const
 {
     return static_cast<int>(sizeof(SCHEMA) / sizeof(SCHEMA[0]));
 }

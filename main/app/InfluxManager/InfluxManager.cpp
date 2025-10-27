@@ -71,8 +71,6 @@ void InfluxManager::Work()
         uint32_t events;
         task.NotifyWait(&events);
         _state.Set(State::Working);
-
-        ESP_LOGI(TAG, "Starting InfluxDB write session...");
         InfluxSession session = _client.CreateSession(pdMS_TO_TICKS(5000));
         int entriesWritten = 0;
 
@@ -112,7 +110,6 @@ void InfluxManager::Work()
 
         // only after the loop:
         session.Finish();
-        ESP_LOGI(TAG, "InfluxDB write complete, %d entries written.", entriesWritten);
         _state.Set(State::Idle);
     }
 }

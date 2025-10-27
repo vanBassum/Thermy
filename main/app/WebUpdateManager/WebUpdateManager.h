@@ -5,6 +5,13 @@
 #include "TickContext.h"
 #include "SettingsManager.h"
 #include "esp_log.h"
+#include "HttpClientRequest.h"
+
+struct Manifest
+{
+    char sha256[65] = {}; // 64 + null terminator
+};
+
 
 class WebUpdateManager
 {
@@ -21,13 +28,12 @@ private:
     SettingsManager &settingsManager;
     InitGuard initGuard;
     RecursiveMutex mutex;
-
     Milliseconds lastCheck = 0;
+    HttpClient client;
+    char currentSha[65] = {};
 
-    bool FetchManifest(std::string &jsonOut);
-    bool ParseManifest(const std::string &json, std::string &remoteHash);
-    bool ReadLocalHash(std::string &hashOut);
-    bool WriteLocalManifest(const std::string &json);
-    bool HashChanged(const std::string &local, const std::string &remote);
-    bool DownloadAndExtractBundle();
+    void DownloadIfRequired();
+    bool GetManifest(const char* manifestUrl, Manifest& out_manifest);
+    bool DownloadWebBundle(const char* webbundleUrl);
+
 };
