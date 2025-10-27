@@ -16,7 +16,7 @@ public:
     };
 
     HttpClientRequest(HttpClient& client);
-    ~HttpClientRequest();
+    ~HttpClientRequest() = default;
 
     void SetMethod(esp_http_client_method_t method);
     void SetPath(const char* path);

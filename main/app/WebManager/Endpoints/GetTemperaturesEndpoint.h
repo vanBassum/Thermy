@@ -3,6 +3,7 @@
 #include "json/json.h"
 #include "ServiceProvider.h"
 #include "DataManager.h"
+#include "BufferedStream.h"
 
 
 class GetTemperaturesEndpoint : public HttpServerEndpoint

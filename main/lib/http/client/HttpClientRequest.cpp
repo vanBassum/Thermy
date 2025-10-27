@@ -13,6 +13,7 @@ HttpClientRequest::HttpClientRequest(HttpClient& client)
     _state = State::Idle;
 }
 
+
 void HttpClientRequest::SetMethod(esp_http_client_method_t method)
 {
     if (_state != State::Idle) {
@@ -29,6 +30,15 @@ void HttpClientRequest::SetPath(const char * path)
         return;
     }
     esp_http_client_set_url(_handle, path);
+}
+
+void HttpClientRequest::AddHeader(const char * key, const char * value)
+{
+    if (_state != State::Idle) {
+        ESP_LOGE(TAG, "AddHeader() called in invalid state (%d)", (int)_state);
+        return;
+    }
+    esp_http_client_set_header(_handle, key, value);
 }
 
 bool HttpClientRequest::Begin() {
@@ -63,4 +73,9 @@ int HttpClientRequest::Finalize() {
 
     _state = State::Reading;
     return esp_http_client_get_status_code(_handle);
+}
+
+HttpClientStream & HttpClientRequest::GetStream()
+{
+    return _stream;
 }
