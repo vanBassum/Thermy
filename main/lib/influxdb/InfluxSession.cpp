@@ -1,78 +1,71 @@
 #include "InfluxSession.h"
 #include <cassert>
+#include <cstdio>
+#include <cstring>
 
-enum class WritePhase
+InfluxSession::InfluxSession(HttpClient& client,
+                             const char* endpoint,
+                             const char* apiKey,
+                             TickType_t timeout)
+    : _req(client)
 {
-    None,
-    Measurement,
-    Tags,
-    Fields
-};
+    _req.SetMethod(HTTP_METHOD_POST);
+    _req.SetPath(endpoint);
 
-InfluxSession::~InfluxSession()
-{
-}
-
-void InfluxSession::Init(const char *url, const char *apiKey, TickType_t timeout)
-{
-    if (_initGuard.IsReady())
-        return;
-
-    _req.Init(url, HTTP_METHOD_POST, timeout);
-    
-
-    if (apiKey && *apiKey)
-    {
-        char authHeader[160];
-        snprintf(authHeader, sizeof(authHeader), "Token %s", apiKey);
-        _req.SetHeader("Authorization", authHeader);
+    if (apiKey && *apiKey) {
+        char auth[160];
+        snprintf(auth, sizeof(auth), "Token %s", apiKey);
+        _req.AddHeader("Authorization", auth);
     }
-    _req.SetHeader("Content-Type", "text/plain; charset=utf-8");
+    _req.AddHeader("Content-Type", "text/plain; charset=utf-8");
 
-    if (!_req.Open())
-    {
-        ESP_LOGE(TAG, "Failed to open HTTP request");
+    if (!_req.Begin()) {
+        ESP_LOGE(TAG, "Failed to start request");
         return;
     }
-
-    ESP_LOGI(TAG, "InfluxSession initialized for URL: %s", url);
 
     _initGuard.SetReady();
     _phase = WritePhase::None;
 }
 
-InfluxSession &InfluxSession::withMeasurement(const char *name, const DateTime &timestamp)
+InfluxSession::~InfluxSession()
+{
+    // If user forgot to call Finish(), finalize safely
+    if (_initGuard.IsReady()) {
+        ESP_LOGW(TAG, "Session destroyed without Finish(), closing gracefully");
+        Finish();
+    }
+}
+
+
+InfluxSession& InfluxSession::withMeasurement(const char* name, const DateTime& timestamp)
 {
     REQUIRE_READY(_initGuard);
     assert(name);
-    
-    ESP_LOGI(TAG, "Adding measurement: %s", name);
 
-    auto &stream = _req.GetStream();
+    auto& stream = _req.GetStream();
     StringWriter writer(stream);
 
     // If this isn't the first measurement, end the previous line
-    if (_phase != WritePhase::None)
-    {
+    if (_phase != WritePhase::None) {
         writer.writeChar(' ');
         writer.writeInt64(_timestamp.UtcSeconds());
         writer.writeChar('\n');
     }
 
     writer.writeString(name);
-
     _timestamp = timestamp;
     _phase = WritePhase::Measurement;
     return *this;
 }
 
-InfluxSession &InfluxSession::withTag(const char *key, const char *value)
+InfluxSession& InfluxSession::withTag(const char* key, const char* value)
 {
     REQUIRE_READY(_initGuard);
     assert(key && value);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags);
 
-    auto &stream = _req.GetStream();
+    auto& stream = _req.GetStream();
     StringWriter writer(stream);
 
     writer.writeChar(',');
@@ -84,13 +77,13 @@ InfluxSession &InfluxSession::withTag(const char *key, const char *value)
     return *this;
 }
 
-InfluxSession &InfluxSession::withField(const char *key, float value)
+InfluxSession& InfluxSession::withField(const char* key, float value)
 {
     REQUIRE_READY(_initGuard);
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
-    auto &stream = _req.GetStream();
+    auto& stream = _req.GetStream();
     StringWriter writer(stream);
 
     if (_phase != WritePhase::Fields)
@@ -107,13 +100,13 @@ InfluxSession &InfluxSession::withField(const char *key, float value)
     return *this;
 }
 
-InfluxSession &InfluxSession::withField(const char *key, int32_t value)
+InfluxSession& InfluxSession::withField(const char* key, int32_t value)
 {
     REQUIRE_READY(_initGuard);
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
-    auto &stream = _req.GetStream();
+    auto& stream = _req.GetStream();
     StringWriter writer(stream);
 
     if (_phase != WritePhase::Fields)
@@ -128,13 +121,13 @@ InfluxSession &InfluxSession::withField(const char *key, int32_t value)
     return *this;
 }
 
-InfluxSession &InfluxSession::withField(const char *key, bool value)
+InfluxSession& InfluxSession::withField(const char* key, bool value)
 {
     REQUIRE_READY(_initGuard);
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
-    auto &stream = _req.GetStream();
+    auto& stream = _req.GetStream();
     StringWriter writer(stream);
 
     if (_phase != WritePhase::Fields)
@@ -155,14 +148,13 @@ bool InfluxSession::Finish()
 
     ESP_LOGI(TAG, "Finalizing Influx write session.");
 
-    auto &stream = _req.GetStream();
+    auto& stream = _req.GetStream();
     StringWriter writer(stream);
     writer.writeChar(' ');
     writer.writeInt64(_timestamp.UtcSeconds());
     writer.writeChar('\n');
 
-    int status = _req.Perform();
-    _req.Close();
+    int status = _req.Finalize();
     _initGuard.SetNotReady();
     _phase = WritePhase::None;
 
@@ -170,16 +162,16 @@ bool InfluxSession::Finish()
         ESP_LOGE(TAG, "Influx write failed, HTTP %d", status);
         return false;
     }
+
+    ESP_LOGI(TAG, "Influx write successful, HTTP %d", status);
     return true;
 }
 
-
-void InfluxSession::WriteEscaped(const char *text)
+void InfluxSession::WriteEscaped(const char* text)
 {
     assert(text);
-
-    auto &stream = _req.GetStream();
-    for (const char *p = text; *p; ++p)
+    auto& stream = _req.GetStream();
+    for (const char* p = text; *p; ++p)
     {
         char c = *p;
         if (c == ' ' || c == ',' || c == '=')

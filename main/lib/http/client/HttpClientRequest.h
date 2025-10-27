@@ -1,30 +1,38 @@
 #pragma once
-#include "HttpClientRequestStream.h"
+#include "HttpClient.h"
+#include "HttpClientStream.h"
 #include "esp_http_client.h"
+#include "esp_err.h"
 #include "esp_log.h"
-#include <cstring>
-#include "BufferedStream.h"
 
-class HttpClientRequest
-{
-    inline static constexpr const char* TAG = "HttpClientRequest";
+class HttpClientRequest {
 public:
-    HttpClientRequest() = default;
+    enum class State {
+        Idle,
+        Writing,
+        Reading,
+        Completed,
+        Error
+    };
+
+    HttpClientRequest(HttpClient& client);
     ~HttpClientRequest();
 
-    void Init(const char* url, esp_http_client_method_t method, TickType_t timeoutTicks);
-    bool Open();
-    void Close();
+    void SetMethod(esp_http_client_method_t method);
+    void SetPath(const char* path);
+    void AddHeader(const char* key, const char* value);
+    bool Begin();          // Opens connection for writing
+    int Finalize();        // Fetches headers, returns HTTP status
+    HttpClientStream& GetStream();
 
-    void SetHeader(const char* key, const char* value);
-    int GetStatusCode() const;
-
-    Stream& GetStream() { return _stream; }
-    int Perform();
+    // Accessor for stream validation
+    State GetState() const { return _state; }
 
 private:
-    esp_http_client_config_t _config{};
-    esp_http_client_handle_t _client = nullptr;
-    bool _opened = false;
-    HttpClientRequestStream _stream;  // persistent stream for this request
+    friend class HttpClientStream;  // allow stream to read _state
+
+    esp_http_client_handle_t _handle = nullptr;
+    HttpClientStream _stream;
+    State _state = State::Idle;
+    inline static constexpr const char* TAG = "HttpClientRequest";
 };

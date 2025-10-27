@@ -1,6 +1,6 @@
 #pragma once
 #include "InfluxSession.h"
-#include "DateTime.h"
+#include "HttpClient.h"
 #include <cstdio>
 #include <cstring>
 
@@ -9,36 +9,34 @@ class InfluxClient
 public:
     InfluxClient() = default;
 
-    void Init(const char* baseUrl,
+    void Init(const char* baseUrl, // e.g. "http://influxdb.local:8086"
               const char* apiKey,
               const char* organization,
               const char* bucket)
     {
-        // Allow re-initialization
         _initGuard.SetNotReady();
 
         std::strncpy(_apiKey, apiKey ? apiKey : "", sizeof(_apiKey) - 1);
         _apiKey[sizeof(_apiKey) - 1] = '\0';
 
-        std::snprintf(_urlBuffer, sizeof(_urlBuffer),
-                      "%s?org=%s&bucket=%s&precision=s",
-                      baseUrl ? baseUrl : "",
+        std::snprintf(_endpoint, sizeof(_endpoint),
+                      "/api/v2/write?org=%s&bucket=%s&precision=s",
                       organization ? organization : "",
                       bucket ? bucket : "");
 
+        _httpClient.Init(baseUrl);
         _initGuard.SetReady();
     }
 
-    InfluxSession CreateSession(const TickType_t timeout)
+    InfluxSession CreateSession(TickType_t timeout)
     {
         REQUIRE_READY(_initGuard);
-        InfluxSession session;
-        session.Init(_urlBuffer, _apiKey, timeout);
-        return session;
+        return InfluxSession(_httpClient, _endpoint, _apiKey, timeout);
     }
 
 private:
+    HttpClient _httpClient;
     InitGuard _initGuard;
     char _apiKey[128] = {};
-    char _urlBuffer[256] = {};
+    char _endpoint[256] = {};
 };

@@ -1,127 +1,66 @@
 #include "HttpClientRequest.h"
-#include "esp_err.h"
-#include "esp_log.h"
-#include "esp_http_client.h"
-#include "esp_crt_bundle.h"
-#include <cassert>
+#include <cstdio>
 
-HttpClientRequest::~HttpClientRequest()
+HttpClientRequest::HttpClientRequest(HttpClient& client)
+    : _handle(client.GetHandle()),
+      _stream(_handle, this)  // <-- Pass this to stream
 {
-    Close();
+    if (!_handle) {
+        ESP_LOGE(TAG, "Invalid HttpClient handle — did you call Init()?");
+        _state = State::Error;
+        return;
+    }
+    _state = State::Idle;
 }
 
-void HttpClientRequest::Init(const char *url, esp_http_client_method_t method, TickType_t timeoutTicks)
+void HttpClientRequest::SetMethod(esp_http_client_method_t method)
 {
-    assert(url);
-    assert(!_client && "Client already initialized");
-
-    memset(&_config, 0, sizeof(_config));
-    _config.url = url;
-    _config.method = method;
-    _config.timeout_ms = pdTICKS_TO_MS(timeoutTicks);
-    _config.crt_bundle_attach = esp_crt_bundle_attach;
-
-    _client = esp_http_client_init(&_config);
-    assert(_client && "esp_http_client_init failed");
-    ESP_LOGI(TAG, "HTTP client initialized for URL: %s", url);
+    if (_state != State::Idle) {
+        ESP_LOGE(TAG, "SetMethod() called in invalid state (%d)", (int)_state);
+        return;
+    }
+    esp_http_client_set_method(_handle, method);
 }
 
-bool HttpClientRequest::Open()
+void HttpClientRequest::SetPath(const char * path)
 {
-    assert(_client && "Client not initialized");
-    assert(!_opened && "Request already opened");
+    if (_state != State::Idle) {
+        ESP_LOGE(TAG, "SetPath() called in invalid state (%d)", (int)_state);
+        return;
+    }
+    esp_http_client_set_url(_handle, path);
+}
 
-    SetHeader("Transfer-Encoding", "chunked");
+bool HttpClientRequest::Begin() {
+    if (_state != State::Idle) {
+        ESP_LOGE(TAG, "Begin() called in invalid state (%d)", (int)_state);
+        return false;
+    }
 
-    esp_err_t err = esp_http_client_open(_client, -1);
-    assert(err == ESP_OK && "esp_http_client_open failed");
+    esp_err_t err = esp_http_client_open(_handle, -1);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open connection: %s", esp_err_to_name(err));
+        _state = State::Error;
+        return false;
+    }
 
-
-    ESP_LOGI(TAG, "HTTP request opened");   
-    _stream.Init(_client, true);
-    _opened = true;
+    _state = State::Writing;
     return true;
 }
 
-void HttpClientRequest::Close()
-{
-    if (!_client)
-        return;
-
-    if (_opened)
-        esp_http_client_close(_client);
-
-    esp_http_client_cleanup(_client);
-    _stream.Init(nullptr, false);
-    _client = nullptr;
-    _opened = false;
-}
-
-void HttpClientRequest::SetHeader(const char *key, const char *value)
-{
-    assert(_client && "Client not initialized");
-    assert(!_opened && "Request already opened");
-    esp_http_client_set_header(_client, key, value);
-}
-
-int HttpClientRequest::GetStatusCode() const
-{
-    assert(_client && "Client not initialized");
-    assert(_opened && "Request not opened");
-    return esp_http_client_get_status_code(_client);
-}
-
-int HttpClientRequest::Perform()
-{
-    assert(_client && "Client not initialized");
-    assert(_opened && "Request not opened");
-
-    _stream.flush();
-    esp_http_client_write(_client, "0\r\n\r\n", 5);
-
-    esp_err_t err = esp_http_client_perform(_client);
-    if (err != ESP_OK)
-    {
-        // Distinguish common cases (do NOT read the body here!)
-        if (err == ESP_ERR_HTTP_EAGAIN) {
-            ESP_LOGW(TAG, "HTTP perform timeout (ESP_ERR_HTTP_EAGAIN)");
-            return -2; // timeout / try again
-        }
-        if (err == ESP_ERR_NOT_SUPPORTED) {
-            ESP_LOGE(TAG, "HTTP perform failed: Authentication challenge not supported (ESP_ERR_NOT_SUPPORTED)");
-            return -3; // auth challenge we didn't satisfy (e.g., 401 with WWW-Authenticate)
-        }
-
-        ESP_LOGE(TAG, "HTTP perform failed: %s", esp_err_to_name(err));
-        return -1; // generic transport/protocol failure
-    }
-
-    // Only now is it safe to query status and possibly read body
-    int status = esp_http_client_get_status_code(_client);
-
-    // Treat invalid/missing status as error
-    if (status <= 0) {
-        ESP_LOGE(TAG, "No valid HTTP status after perform");
+int HttpClientRequest::Finalize() {
+    if (_state != State::Writing) {
+        ESP_LOGE(TAG, "Finalize() called in invalid state (%d)", (int)_state);
         return -1;
     }
 
-    // HTTP error classes (4xx/5xx): body may or may not be available; read is safe now
-    if (status >= 400) {
-        char buf[256];
-        int n = esp_http_client_read(_client, buf, sizeof(buf) - 1);
-        if (n > 0) {
-            buf[n] = '\0';
-            ESP_LOGW(TAG, "HTTP error response (%d): %s", status, buf);
-        } else {
-            ESP_LOGW(TAG, "HTTP error (%d): no response body", status);
-        }
-        return status; // return the actual HTTP status so caller can branch on 401, 429, 5xx, etc.
+    int64_t contentLength = esp_http_client_fetch_headers(_handle);
+    if (contentLength < 0) {
+        ESP_LOGE(TAG, "Fetch headers failed");
+        _state = State::Error;
+        return -1;
     }
 
-    // Non-2xx success (e.g. 202) is often fine; log for visibility
-    if (status < 200 || status > 299) {
-        ESP_LOGW(TAG, "Unexpected HTTP status: %d", status);
-    }
-
-    return status;
+    _state = State::Reading;
+    return esp_http_client_get_status_code(_handle);
 }

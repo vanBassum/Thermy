@@ -17,28 +17,22 @@ class InfluxSession
     };
 
 public:
-    InfluxSession() = default;
+    InfluxSession(HttpClient& client,
+                  const char* endpoint,
+                  const char* apiKey,
+                  TickType_t timeout);
     ~InfluxSession();
 
     // Disable copy
     InfluxSession(const InfluxSession&) = delete;
     InfluxSession& operator=(const InfluxSession&) = delete;
 
-    // Enable move
-    InfluxSession(InfluxSession&& other) noexcept;
-    InfluxSession& operator=(InfluxSession&& other) noexcept;
 
-    /// Initializes the session.
-    void Init(const char* url,
-              const char* apiKey,
-              TickType_t timeout);
-
+    InfluxSession& withMeasurement(const char* name, const DateTime& timestamp);
     InfluxSession& withTag(const char* key, const char* value);
     InfluxSession& withField(const char* key, float value);
     InfluxSession& withField(const char* key, int32_t value);
     InfluxSession& withField(const char* key, bool value);
-
-    InfluxSession& withMeasurement(const char* name, const DateTime& timestamp);
 
     bool Finish();
 
