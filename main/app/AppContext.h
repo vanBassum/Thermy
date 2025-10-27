@@ -10,10 +10,10 @@
 #include "DataManager.h"
 #include "TickContext.h"
 #include "WebManager.h"
-#include "FatFsDriver.h"
 #include "FtpManager.h"
 #include "WebUpdateManager.h"
 #include "SimpleStats.h"
+#include "HardwareManager.h"
 
 class AppContext : public ServiceProvider
 {
@@ -30,6 +30,7 @@ public:
     AppContext(const AppContext &) = delete;
     AppContext &operator=(const AppContext &) = delete;
 
+    HardwareManager &GetHardwareManager() override { return hardwareManager; }
     SensorManager &GetSensorManager() override { return sensorManager; }
     DisplayManager &GetDisplayManager() override { return displayManager; }
     WifiManager &GetWifiManager() override { return wifiManager; }
@@ -43,7 +44,7 @@ public:
 
     void Init()
     {
-        fatFsDriver.Init(); 
+        hardwareManager.Init();
         GetSettingsManager().Init();
         GetDisplayManager().Init();
         GetWifiManager().Init();
@@ -62,7 +63,7 @@ public:
     int GetStatsCount() override { return num_stats; }
 
 private:
-    FatfsDriver fatFsDriver{"/fat", "fat"};
+    HardwareManager hardwareManager{*this};
     SensorManager sensorManager{*this};
     DisplayManager displayManager{*this};
     WifiManager wifiManager{*this};

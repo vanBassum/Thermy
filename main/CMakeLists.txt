@@ -30,6 +30,7 @@ set(INCLUDE_DIRS_LIST
     "app/DataManager"
     "app/DisplayManager"
     "app/FtpManager"
+    "app/HardwareManager"
     "app/InfluxManager"
     "app/SensorManager"
     "app/SettingsManager"

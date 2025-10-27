@@ -35,14 +35,18 @@ void InfluxSession::Init(const char *url, const char *apiKey, TickType_t timeout
         return;
     }
 
+    ESP_LOGI(TAG, "InfluxSession initialized for URL: %s", url);
+
     _initGuard.SetReady();
     _phase = WritePhase::None;
 }
 
 InfluxSession &InfluxSession::withMeasurement(const char *name, const DateTime &timestamp)
 {
-    assert(_initGuard.IsReady());
+    REQUIRE_READY(_initGuard);
     assert(name);
+    
+    ESP_LOGI(TAG, "Adding measurement: %s", name);
 
     auto &stream = _req.GetStream();
     StringWriter writer(stream);
@@ -64,7 +68,7 @@ InfluxSession &InfluxSession::withMeasurement(const char *name, const DateTime &
 
 InfluxSession &InfluxSession::withTag(const char *key, const char *value)
 {
-    assert(_initGuard.IsReady());
+    REQUIRE_READY(_initGuard);
     assert(key && value);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags);
 
@@ -82,7 +86,7 @@ InfluxSession &InfluxSession::withTag(const char *key, const char *value)
 
 InfluxSession &InfluxSession::withField(const char *key, float value)
 {
-    assert(_initGuard.IsReady());
+    REQUIRE_READY(_initGuard);
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
@@ -105,7 +109,7 @@ InfluxSession &InfluxSession::withField(const char *key, float value)
 
 InfluxSession &InfluxSession::withField(const char *key, int32_t value)
 {
-    assert(_initGuard.IsReady());
+    REQUIRE_READY(_initGuard);
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
@@ -126,7 +130,7 @@ InfluxSession &InfluxSession::withField(const char *key, int32_t value)
 
 InfluxSession &InfluxSession::withField(const char *key, bool value)
 {
-    assert(_initGuard.IsReady());
+    REQUIRE_READY(_initGuard);
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
@@ -148,6 +152,8 @@ bool InfluxSession::Finish()
 {
     if (!_initGuard.IsReady() || _phase == WritePhase::None)
         return false;
+
+    ESP_LOGI(TAG, "Finalizing Influx write session.");
 
     auto &stream = _req.GetStream();
     StringWriter writer(stream);

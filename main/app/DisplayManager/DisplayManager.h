@@ -9,6 +9,7 @@
 #include "WifiManager.h"
 #include "TimeManager.h"
 #include "InfluxManager.h"
+#include "HardwareManager.h"
 
 
 class DisplayManager
@@ -27,6 +28,7 @@ private:
     WifiManager& wifiManager;
     TimeManager& timeManager;
     InfluxManager& influxManager;
+    HardwareManager& hardwareManager;
     InitGuard initGuard;
     Mutex mutex;
     DisplayDriver driver;

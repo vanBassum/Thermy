@@ -15,7 +15,7 @@
 class InfluxManager
 {
     inline static constexpr const char *TAG = "InfluxManager";
-    inline static constexpr Milliseconds INFLUX_WRITE_INTERVAL = Millis(30000);
+    inline static constexpr Milliseconds INFLUX_WRITE_INTERVAL = Millis(10000);
 
     enum class State
     {

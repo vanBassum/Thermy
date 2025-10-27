@@ -13,10 +13,12 @@ class WebManager;
 class FtpManager;
 class WebUpdateManager;
 class SimpleStats;
+class HardwareManager;
 
 class ServiceProvider
 {
 public:
+    virtual HardwareManager &GetHardwareManager() = 0;
     virtual SensorManager &GetSensorManager() = 0;
     virtual DisplayManager &GetDisplayManager() = 0;
     virtual WifiManager &GetWifiManager() = 0;

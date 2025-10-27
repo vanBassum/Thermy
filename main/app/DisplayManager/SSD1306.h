@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <string.h>
-#include "driver/i2c.h"
+#include "driver/i2c_master.h"
 #include "driver/spi_master.h"
 #include "esp_err.h"
 #include "TextStyle.h"
@@ -49,21 +49,22 @@ protected:
 // ==========================================================
 class SSD1306_I2C : public SSD1306
 {
-    inline static constexpr const char *OLED_TAG = "SSD1306_I2C";
+    inline static constexpr const char *TAG = "SSD1306_I2C";
 
 public:
-    SSD1306_I2C(uint8_t width, uint8_t height,
-                i2c_port_t i2c_port, uint8_t addr = 0x3C,
-                bool external_vcc = false);
+    SSD1306_I2C(uint8_t width, uint8_t height, bool external_vcc = false);
     ~SSD1306_I2C() override = default;
+
+    esp_err_t Init(i2c_master_bus_handle_t busHandle, uint8_t addr = 0x3C);
 
 protected:
     void writeCmd(uint8_t cmd) override;
     void writeData(const uint8_t *data, size_t len) override;
 
 private:
-    i2c_port_t port;
-    uint8_t address;
+    i2c_master_bus_handle_t bus = nullptr;
+    i2c_master_dev_handle_t dev = nullptr;
+    uint8_t address = 0x3C;
 };
 
 // ==========================================================

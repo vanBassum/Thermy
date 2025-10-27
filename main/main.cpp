@@ -34,6 +34,7 @@ static SimpleStats g_stats[] = {
     SimpleStats("FTP"),
     SimpleStats("WebUpdate"),
     SimpleStats("Data"),
+    SimpleStats("Hardware")
 };
 
 constexpr size_t NUM_STATS = sizeof(g_stats) / sizeof(g_stats[0]);
@@ -49,10 +50,11 @@ void TickAllServices(TickContext &ctx, SimpleStats stats[])
     stats[3].AddValue(MeasureTick([&]() { appContext.GetTimeManager().Tick(ctx); }));
     stats[4].AddValue(MeasureTick([&]() { appContext.GetSensorManager().Tick(ctx); }));
     stats[5].AddValue(MeasureTick([&]() { appContext.GetInfluxManager().Tick(ctx); }));
-    stats[6].AddValue(MeasureTick([&]() { appContext.GetWebManager().Tick(ctx); }));
-    stats[7].AddValue(MeasureTick([&]() { appContext.GetFtpManager().Tick(ctx); }));
-    stats[8].AddValue(MeasureTick([&]() { appContext.GetWebUpdateManager().Tick(ctx); }));
+    //stats[6].AddValue(MeasureTick([&]() { appContext.GetWebManager().Tick(ctx); }));
+    //stats[7].AddValue(MeasureTick([&]() { appContext.GetFtpManager().Tick(ctx); }));
+    //stats[8].AddValue(MeasureTick([&]() { appContext.GetWebUpdateManager().Tick(ctx); }));
     stats[9].AddValue(MeasureTick([&]() { appContext.GetDataManager().Tick(ctx); }));
+    stats[10].AddValue(MeasureTick([&]() { appContext.GetHardwareManager().Tick(ctx); }));
 }
 
 
@@ -114,7 +116,7 @@ extern "C" void app_main(void)
             ESP_LOGW(TAG, "Tick overrun! elapsed=%llums interval=%llums", elapsed, interval);
             ReportStatistics(g_stats, NUM_STATS);
         }
-        
+
         vTaskDelay(pdMS_TO_TICKS(remaining));
     }
 }

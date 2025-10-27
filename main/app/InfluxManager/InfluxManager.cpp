@@ -93,6 +93,11 @@ void InfluxManager::SendLogCode_Temperature(InfluxSession &session, DataEntry &e
     char timestampStr[25] = {};
     entry.timestamp.ToStringLocal(timestampStr, sizeof(timestampStr), DateTime::FormatIso8601);
 
+    ESP_LOGI(TAG, "Writing temperature: %.2f °C from sensor %s at %s",
+             valuePair->value.asFloat,
+             addressStr,
+             timestampStr);
+
     session.withMeasurement("temperature", entry.timestamp)
             .withTag("address", addressStr)
             .withField("value", valuePair->value.asFloat);
@@ -109,6 +114,7 @@ void InfluxManager::Work()
         task.NotifyWait(&events);
         _state.Set(State::Working);
 
+        ESP_LOGI(TAG, "Starting InfluxDB write session...");
         InfluxSession session = _client.CreateSession(pdMS_TO_TICKS(5000));
         int entriesWritten = 0;
 
@@ -119,6 +125,7 @@ void InfluxManager::Work()
         {
             if(HasFlag(entry.flags, HandledFlags::WrittenToInflux))
                 return; // Already written
+
 
             EnsureValidTimestamp(entry);
 
@@ -144,7 +151,7 @@ void InfluxManager::Work()
 
 
         session.Finish();
-        //ESP_LOGI(TAG, "InfluxDB write complete, %d entries written.", entriesWritten);
+        ESP_LOGI(TAG, "InfluxDB write complete, %d entries written.", entriesWritten);
         _state.Set(State::Idle);
     }
 }

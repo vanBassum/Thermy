@@ -23,6 +23,7 @@ void HttpClientRequest::Init(const char *url, esp_http_client_method_t method, T
 
     _client = esp_http_client_init(&_config);
     assert(_client && "esp_http_client_init failed");
+    ESP_LOGI(TAG, "HTTP client initialized for URL: %s", url);
 }
 
 bool HttpClientRequest::Open()
@@ -35,6 +36,8 @@ bool HttpClientRequest::Open()
     esp_err_t err = esp_http_client_open(_client, -1);
     assert(err == ESP_OK && "esp_http_client_open failed");
 
+
+    ESP_LOGI(TAG, "HTTP request opened");   
     _stream.Init(_client, true);
     _opened = true;
     return true;

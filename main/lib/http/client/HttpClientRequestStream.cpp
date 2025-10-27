@@ -15,7 +15,7 @@ size_t HttpClientRequestStream::write(const void* data, size_t len)
     assert(data && len > 0);
 
     // For debuffing
-    //printf("%.*s", (int)len, (const char*)data);
+    printf("%.*s", (int)len, (const char*)data);
 
     if (_chunked) {
         char header[10];
@@ -29,8 +29,6 @@ size_t HttpClientRequestStream::write(const void* data, size_t len)
 
     return len;
 }
-
-
 
 size_t HttpClientRequestStream::read(void* buffer, size_t len)
 {

@@ -9,6 +9,7 @@ DisplayManager::DisplayManager(ServiceProvider &ctx)
     , wifiManager(ctx.GetWifiManager())
     , timeManager(ctx.GetTimeManager())
     , influxManager(ctx.GetInfluxManager())
+    , hardwareManager(ctx.GetHardwareManager())
 {
 }
 
@@ -19,7 +20,7 @@ void DisplayManager::Init()
 
     LOCK(mutex);
 
-    driver.Init();
+    driver.Init(hardwareManager.GetI2CBus());
     initGuard.SetReady();
     ESP_LOGI(TAG, "DisplayManager initialized.");
 }

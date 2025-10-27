@@ -148,51 +148,68 @@ void SSD1306::drawText(int x, int y, const char* str, const TextStyle& style)
 
 
 // ===================== I2C =====================
-
-SSD1306_I2C::SSD1306_I2C(uint8_t w, uint8_t h, i2c_port_t i2c_port,
-                         uint8_t addr, bool ext_vcc)
-    : SSD1306(w, h, ext_vcc), port(i2c_port), address(addr)
+SSD1306_I2C::SSD1306_I2C(uint8_t w, uint8_t h, bool ext_vcc)
+    : SSD1306(w, h, ext_vcc)
 {
+}
+
+// Initializes the SSD1306 device on an already initialized I2C bus
+esp_err_t SSD1306_I2C::Init(i2c_master_bus_handle_t busHandle, uint8_t addr)
+{
+    address = addr;
+    bus = busHandle;
+
+    i2c_device_config_t dev_cfg = {
+        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+        .device_address = address,
+        .scl_speed_hz = 400000,
+    };
+
+    esp_err_t err = i2c_master_bus_add_device(bus, &dev_cfg, &dev);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to add SSD1306 device: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    ESP_LOGI(TAG, "SSD1306 device attached at address 0x%02X", address);
+
+    // Initialize display
     initDisplay();
+    contrast(0xFF);
+    fill(0);
+    show();
+
+    return ESP_OK;
 }
 
-// --- writeCmd: one short transaction (START -> 0x3C + W -> 0x80 -> cmd -> STOP)
-void SSD1306_I2C::writeCmd(uint8_t cmd) {
-    i2c_cmd_handle_t c = i2c_cmd_link_create();
-    i2c_master_start(c);
-    i2c_master_write_byte(c, (address << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(c, 0x80, true);        // control: Co=1, D/C#=0
-    i2c_master_write_byte(c, cmd, true);
-    i2c_master_stop(c);
-    esp_err_t err = i2c_master_cmd_begin(port, c, pdMS_TO_TICKS(50));
-    i2c_cmd_link_delete(c);
-    if (err != ESP_OK) ESP_LOGW(OLED_TAG, "writeCmd 0x%02X err=%d", cmd, (int)err);
+void SSD1306_I2C::writeCmd(uint8_t cmd)
+{
+    uint8_t buffer[2] = {0x80, cmd}; // control byte (Co=1, D/C#=0), then command
+    esp_err_t err = i2c_master_transmit(dev, buffer, sizeof(buffer), 50);
+    if (err != ESP_OK)
+        ESP_LOGW(TAG, "writeCmd 0x%02X err=%s", cmd, esp_err_to_name(err));
 }
 
-void SSD1306_I2C::writeData(const uint8_t* data, size_t len) {
-    constexpr size_t CHUNK = 32;  // safe size for ESP-IDF I2C
-    while (len > 0) {
+void SSD1306_I2C::writeData(const uint8_t *data, size_t len)
+{
+    constexpr size_t CHUNK = 32;
+    uint8_t buf[CHUNK + 1];
+    buf[0] = 0x40; // control byte (Co=0, D/C#=1)
+
+    while (len > 0)
+    {
         size_t n = len > CHUNK ? CHUNK : len;
+        memcpy(&buf[1], data, n);
 
-        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-        i2c_master_start(cmd);
-        i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
-        i2c_master_write_byte(cmd, 0x40, true);  // control byte: Co=0, D/C#=1
-        i2c_master_write(cmd, data, n, true);
-        i2c_master_stop(cmd);
-
-        esp_err_t err = i2c_master_cmd_begin(port, cmd, pdMS_TO_TICKS(100));
-        i2c_cmd_link_delete(cmd);
-
+        esp_err_t err = i2c_master_transmit(dev, buf, n + 1, 100);
         if (err != ESP_OK) {
-            ESP_LOGW("SSD1306", "writeData chunk err=%d", (int)err);
+            ESP_LOGW(TAG, "writeData chunk err=%s", esp_err_to_name(err));
             break;
         }
 
         data += n;
         len -= n;
-
-        vTaskDelay(0);  // yield so IDLE task runs (prevents watchdog)
+        vTaskDelay(0); // yield for watchdog safety
     }
 }
 
