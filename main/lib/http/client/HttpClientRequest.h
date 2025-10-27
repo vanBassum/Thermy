@@ -23,6 +23,7 @@ public:
     void AddHeader(const char* key, const char* value);
     bool Begin();          // Opens connection for writing
     int Finalize();        // Fetches headers, returns HTTP status
+    void Close();         // Closes connection  
     HttpClientStream& GetStream();
 
     // Accessor for stream validation

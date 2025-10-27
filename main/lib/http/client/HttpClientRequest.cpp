@@ -3,7 +3,7 @@
 
 HttpClientRequest::HttpClientRequest(HttpClient& client)
     : _handle(client.GetHandle()),
-      _stream(_handle, this)  // <-- Pass this to stream
+      _stream(_handle, *this)  // <-- Pass this to stream
 {
     if (!_handle) {
         ESP_LOGE(TAG, "Invalid HttpClient handle — did you call Init()?");
@@ -64,6 +64,9 @@ int HttpClientRequest::Finalize() {
         return -1;
     }
 
+    const char endChunk[] = "0\r\n\r\n";
+    esp_http_client_write(_handle, endChunk, sizeof(endChunk) - 1);
+
     int64_t contentLength = esp_http_client_fetch_headers(_handle);
     if (contentLength < 0) {
         ESP_LOGE(TAG, "Fetch headers failed");
@@ -73,6 +76,14 @@ int HttpClientRequest::Finalize() {
 
     _state = State::Reading;
     return esp_http_client_get_status_code(_handle);
+}
+
+void HttpClientRequest::Close()
+{
+    if (_handle) {
+        esp_http_client_close(_handle);
+        _state = State::Idle;
+    }
 }
 
 HttpClientStream & HttpClientRequest::GetStream()

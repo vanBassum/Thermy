@@ -24,7 +24,7 @@ public:
         {
             DataManager::Iterator it = dataManager.GetIterator();
             DataEntry entry;
-            while(it.ReadAndAdvance(entry))
+            while(it.Read(entry))
             {
                 // Find the logcode
                 auto logCodePair = entry.FindPair(DataKey::LogCode);
@@ -51,6 +51,8 @@ public:
                     obj.field("timestamp", timestampStr);
                     obj.field("temperature", valuePair->value.asFloat);
                 });
+
+                it.Advance();
             }
         });
         bufferedStream.flush();

@@ -17,15 +17,22 @@ size_t HttpClientStream::write(const void *data, size_t len)
         ESP_LOGE(TAG, "Write called in invalid state (%d)", (int)_request.GetState());
         return 0;
     }
+    //printf("%s", (const char*)data); // Debug output
+    char header[10];
+    int header_len = snprintf(header, sizeof(header), "%x\r\n", (unsigned int)len);
+    esp_http_client_write(_handle, header, header_len);
+    esp_http_client_write(_handle, (const char*)data, len);
+    esp_http_client_write(_handle, "\r\n", 2);
 
-    int written = esp_http_client_write(_handle, (const char*)data, len);
-    if (written < 0) {
-        ESP_LOGE(TAG, "esp_http_client_write failed");
-        _request._state = HttpClientRequest::State::Error;
-        return 0;
-    }
 
-    return (size_t)written;
+    //int written = esp_http_client_write(_handle, (const char*)data, len);
+    //if (written < 0) {
+    //    ESP_LOGE(TAG, "esp_http_client_write failed");
+    //    _request._state = HttpClientRequest::State::Error;
+    //    return 0;
+    //}
+
+    return (size_t)len;
 }
 
 size_t HttpClientStream::read(void* buffer, size_t len) {

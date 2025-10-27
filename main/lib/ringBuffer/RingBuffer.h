@@ -47,17 +47,14 @@ public:
             return _manager.AdvanceIndex(_index, _hash);
         }
 
-        bool ReadAndAdvance(T& out)
-        {
-            if (!Read(out))
-                return false;
-            Advance(); // even if fails, read was OK
-            return true;
-        }
-
         bool Write(const T& value)
         {
             return _manager.Write(_index, value, _hash);
+        }
+
+        int GetIndex() const
+        {
+            return static_cast<int>(_index);
         }
 
     private:
@@ -116,8 +113,10 @@ protected:
             return false;
 
         uint32_t currentHash = Hash(entries[index]);
-        if (hash != currentHash)
-            return false; // modified/overwritten
+        if (hash != currentHash) {
+            ESP_LOGW(TAG, "Write failed: hash mismatch (expected %08X, got %08X)", hash, currentHash);
+            return false; // hash mismatch
+        }
 
         // ---- Flash semantics: only allow 1→0 transitions ----
         // const uint8_t* newData = reinterpret_cast<const uint8_t*>(&value);

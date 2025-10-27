@@ -47,8 +47,10 @@ private:
     char influxOrganisation[64];
     char influxBucket[64];
 
-    void EnsureValidTimestamp(DataEntry &entry);
-    void SendLogCode_Temperature(InfluxSession &session, DataEntry &entry);
+
 
     void Work();    
+
+    void EnsureValidTimestamp(DataEntry &entry);
+    void SendLogCode_Temperature(InfluxSession &session, DataEntry &entry);
 };

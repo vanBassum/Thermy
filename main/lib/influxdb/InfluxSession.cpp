@@ -8,6 +8,7 @@ InfluxSession::InfluxSession(HttpClient& client,
                              const char* apiKey,
                              TickType_t timeout)
     : _req(client)
+    , _bufferedStream(_req.GetStream())
 {
     _req.SetMethod(HTTP_METHOD_POST);
     _req.SetPath(endpoint);
@@ -18,6 +19,8 @@ InfluxSession::InfluxSession(HttpClient& client,
         _req.AddHeader("Authorization", auth);
     }
     _req.AddHeader("Content-Type", "text/plain; charset=utf-8");
+    _req.AddHeader("Connection", "close");
+    _req.AddHeader("Transfer-Encoding", "chunked");
 
     if (!_req.Begin()) {
         ESP_LOGE(TAG, "Failed to start request");
@@ -30,11 +33,6 @@ InfluxSession::InfluxSession(HttpClient& client,
 
 InfluxSession::~InfluxSession()
 {
-    // If user forgot to call Finish(), finalize safely
-    if (_initGuard.IsReady()) {
-        ESP_LOGW(TAG, "Session destroyed without Finish(), closing gracefully");
-        Finish();
-    }
 }
 
 
@@ -43,8 +41,7 @@ InfluxSession& InfluxSession::withMeasurement(const char* name, const DateTime& 
     REQUIRE_READY(_initGuard);
     assert(name);
 
-    auto& stream = _req.GetStream();
-    StringWriter writer(stream);
+    StringWriter writer(_bufferedStream);
 
     // If this isn't the first measurement, end the previous line
     if (_phase != WritePhase::None) {
@@ -65,8 +62,7 @@ InfluxSession& InfluxSession::withTag(const char* key, const char* value)
     assert(key && value);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags);
 
-    auto& stream = _req.GetStream();
-    StringWriter writer(stream);
+    StringWriter writer(_bufferedStream);
 
     writer.writeChar(',');
     WriteEscaped(key);
@@ -83,8 +79,7 @@ InfluxSession& InfluxSession::withField(const char* key, float value)
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
-    auto& stream = _req.GetStream();
-    StringWriter writer(stream);
+    StringWriter writer(_bufferedStream);
 
     if (_phase != WritePhase::Fields)
         writer.writeChar(' ');
@@ -106,8 +101,7 @@ InfluxSession& InfluxSession::withField(const char* key, int32_t value)
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
-    auto& stream = _req.GetStream();
-    StringWriter writer(stream);
+    StringWriter writer(_bufferedStream);
 
     if (_phase != WritePhase::Fields)
         writer.writeChar(' ');
@@ -127,8 +121,7 @@ InfluxSession& InfluxSession::withField(const char* key, bool value)
     assert(key);
     assert(_phase == WritePhase::Measurement || _phase == WritePhase::Tags || _phase == WritePhase::Fields);
 
-    auto& stream = _req.GetStream();
-    StringWriter writer(stream);
+    StringWriter writer(_bufferedStream);
 
     if (_phase != WritePhase::Fields)
         writer.writeChar(' ');
@@ -146,36 +139,47 @@ bool InfluxSession::Finish()
     if (!_initGuard.IsReady() || _phase == WritePhase::None)
         return false;
 
-    ESP_LOGI(TAG, "Finalizing Influx write session.");
-
-    auto& stream = _req.GetStream();
-    StringWriter writer(stream);
+    StringWriter writer(_bufferedStream);
     writer.writeChar(' ');
     writer.writeInt64(_timestamp.UtcSeconds());
     writer.writeChar('\n');
+    _bufferedStream.flush();
 
     int status = _req.Finalize();
-    _initGuard.SetNotReady();
-    _phase = WritePhase::None;
+
+    if (status < 0) {
+        ESP_LOGE(TAG, "Influx write failed, HTTP %d", status);
+        _req.Close(); // <--- Ensure socket closed even on error
+        return false;
+    }
+
+    // Optionally read body if needed (e.g. error message)
+    char buf[128];
+    int len = _bufferedStream.read(buf, sizeof(buf) - 1);
+    if (len > 0) {
+        buf[len] = 0;
+        ESP_LOGW(TAG, "Influx response body: %s", buf);
+    }
+
+    _req.Close(); // <--- Always close after reading
 
     if (status < 200 || status >= 300) {
         ESP_LOGE(TAG, "Influx write failed, HTTP %d", status);
         return false;
     }
-
-    ESP_LOGI(TAG, "Influx write successful, HTTP %d", status);
     return true;
 }
+
+
 
 void InfluxSession::WriteEscaped(const char* text)
 {
     assert(text);
-    auto& stream = _req.GetStream();
     for (const char* p = text; *p; ++p)
     {
         char c = *p;
         if (c == ' ' || c == ',' || c == '=')
-            stream.write("\\", 1);
-        stream.write(&c, 1);
+            _bufferedStream.write("\\", 1);
+        _bufferedStream.write(&c, 1);
     }
 }

@@ -114,7 +114,7 @@ extern "C" void app_main(void)
         if (elapsed > interval)
         {
             ESP_LOGW(TAG, "Tick overrun! elapsed=%llums interval=%llums", elapsed, interval);
-            ReportStatistics(g_stats, NUM_STATS);
+            //ReportStatistics(g_stats, NUM_STATS);
         }
 
         vTaskDelay(pdMS_TO_TICKS(remaining));

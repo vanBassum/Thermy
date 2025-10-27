@@ -4,6 +4,7 @@
 #include "StringWriter.h"
 #include "InitGuard.h"
 #include "esp_log.h"
+#include "BufferedStream.h"
 
 class InfluxSession
 {
@@ -41,6 +42,7 @@ private:
     DateTime _timestamp;
     InitGuard _initGuard;
     WritePhase _phase = WritePhase::None;
+    BufferedStream<256> _bufferedStream;
 
     void WriteEscaped(const char* text);
 };
