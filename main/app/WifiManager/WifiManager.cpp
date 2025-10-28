@@ -6,6 +6,7 @@
 #include "freertos/task.h"
 #include <string.h>
 #include "core_utils.h"
+#include "mdns.h"
 
 WifiManager::WifiManager(ServiceProvider &ctx)
     : _ctx(ctx)
@@ -38,6 +39,8 @@ void WifiManager::Init()
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
+
+    init_mdns();
 
     initGuard.SetReady();
 
@@ -122,6 +125,14 @@ bool WifiManager::WaitForConnection(uint32_t timeoutMs)
         vTaskDelay(pdMS_TO_TICKS(100));
     }
     return connected;
+}
+
+void WifiManager::init_mdns()
+{
+    ESP_ERROR_CHECK(mdns_init());
+    ESP_ERROR_CHECK(mdns_hostname_set("thermy"));
+    ESP_ERROR_CHECK(mdns_instance_name_set("Thermy ESP Device"));
+    ESP_ERROR_CHECK(mdns_service_add("Thermy Web", "_http", "_tcp", 80, NULL, 0));
 }
 
 void WifiManager::WifiEventHandler(void *arg, esp_event_base_t event_base,
