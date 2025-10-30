@@ -5,6 +5,8 @@
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 
+// https://github.com/Erwin-Zhuang/SSD1680_Driver/blob/main/Src/SSD1680.c
+
 #ifdef __cplusplus
 extern "C" {
 #endif

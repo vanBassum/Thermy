@@ -61,8 +61,15 @@ class Display_SSD1680 : public Display {
     static constexpr gpio_num_t PIN_NUM_BUSY = GPIO_NUM_4;
 
     // SSD1680 / 2.13" ePaper resolution
-    static constexpr int EPD_WIDTH  = 250;
+    static constexpr int EPD_WIDTH  = 256;
     static constexpr int EPD_HEIGHT = 122;
+
+    // SSD1680 RAM must be addressed in 8-pixel wide chunks
+    static constexpr uint8_t width_bytes = (EPD_WIDTH + 7) / 8;
+    static constexpr size_t buf_size = width_bytes * EPD_HEIGHT;
+
+    // Create a frame buffer filled with 0x00 (black)
+    uint8_t frame[buf_size] = {0};
 
     spi_device_handle_t spi_;
     SSD1680_HandleTypeDef epd_;
@@ -114,7 +121,7 @@ public:
         epd_.reset_pin = PIN_NUM_RST;
         epd_.busy_pin = PIN_NUM_BUSY;
         epd_.Color_Depth = 1; // black/white
-        epd_.Scan_Mode = WideScan;
+        epd_.Scan_Mode = NarrowScan;
         epd_.Resolution_X = EPD_WIDTH;
         epd_.Resolution_Y = EPD_HEIGHT;
 
@@ -137,10 +144,23 @@ public:
     }
 
     void show() override {
-        ESP_LOGI(TAG, "Refreshing display...");
+        return;
+        ESP_LOGI(TAG, "Displaying solid black frame (%dx%d)...", EPD_WIDTH, EPD_HEIGHT);
+
+        
+        // Write frame to the visible region
+        esp_err_t err = SSD1680_SetRegion(&epd_, 0, 0, EPD_WIDTH, EPD_HEIGHT, frame, nullptr);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "SSD1680_SetRegion failed: %d", err);
+            return;
+        }
+
+        // Trigger display refresh
         SSD1680_Refresh(&epd_, FullRefresh);
+        ESP_LOGI(TAG, "Solid black frame displayed.");
     }
 
     void drawChar(int x, int y, char c, const TextStyle& style) override {}
     void drawText(int x, int y, const char *str, const TextStyle& style) override {}
 };
+
