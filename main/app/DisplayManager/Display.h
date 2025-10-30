@@ -1,7 +1,7 @@
 #pragma once
 #include "SSD1306.h"
+#include "SSD1680.h"
 #include "esp_log.h"
-#include "EpaperDriver.h"
 
 class Display
 {
@@ -9,8 +9,8 @@ public:
     virtual void fill(uint8_t color) = 0;
     virtual void drawPixel(int x, int y, bool color) = 0;
     virtual void show() = 0;
-    virtual void drawChar(int x, int y, char c, const TextStyle& style) = 0;
-    virtual void drawText(int x, int y, const char *str, const TextStyle& style) = 0;
+    virtual void drawChar(int x, int y, char c, const TextStyle &style) = 0;
+    virtual void drawText(int x, int y, const char *str, const TextStyle &style) = 0;
 };
 
 class Display_SSD1306 : public Display
@@ -37,12 +37,12 @@ public:
         return ESP_OK;
     }
 
-    void fill(uint8_t color) override    {        display.fill(color);    }
-    void drawPixel(int x, int y, bool color) override    {        display.drawPixel(x, y, color);    }
-    void show() override    {        display.show();    }
-    void drawChar(int x, int y, char c, const TextStyle& style) override    {        display.drawChar(x, y, c, style);    }
-    void drawText(int x, int y, const char *str, const TextStyle& style) override    {        display.drawText(x, y, str, style);    }
-    
+    void fill(uint8_t color) override { display.fill(color); }
+    void drawPixel(int x, int y, bool color) override { display.drawPixel(x, y, color); }
+    void show() override { display.show(); }
+    void drawChar(int x, int y, char c, const TextStyle &style) override { display.drawChar(x, y, c, style); }
+    void drawText(int x, int y, const char *str, const TextStyle &style) override { display.drawText(x, y, str, style); }
+
 private:
     SSD1306_I2C display{OLED_WIDTH, OLED_HEIGHT, EXTERNAL_VCC};
 };
@@ -60,71 +60,87 @@ class Display_SSD1680 : public Display {
     static constexpr gpio_num_t PIN_NUM_RST  = GPIO_NUM_16;
     static constexpr gpio_num_t PIN_NUM_BUSY = GPIO_NUM_4;
 
+    // SSD1680 / 2.13" ePaper resolution
+    static constexpr int EPD_WIDTH  = 250;
+    static constexpr int EPD_HEIGHT = 122;
+
+    spi_device_handle_t spi_;
+    SSD1680_HandleTypeDef epd_;
+
 public:
     esp_err_t Init() {
         ESP_LOGI(TAG, "Initializing SSD1680 display...");
 
-        // --- SPI bus setup ---
-        spi_bus_config_t buscfg = {};
-        buscfg.miso_io_num = -1;
-        buscfg.mosi_io_num = PIN_NUM_MOSI;
-        buscfg.sclk_io_num = PIN_NUM_CLK;
-        buscfg.max_transfer_sz = 4096;
-        buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
+        // --- GPIO setup
+        gpio_config_t io_conf = {};
+        io_conf.mode = GPIO_MODE_OUTPUT;
+        io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+        io_conf.intr_type = GPIO_INTR_DISABLE;
+        io_conf.pin_bit_mask = (1ULL << PIN_NUM_DC) | (1ULL << PIN_NUM_RST);
+        ESP_ERROR_CHECK(gpio_config(&io_conf));
 
+        // Busy pin (input)
+        gpio_config_t busy_conf = {};
+        busy_conf.mode = GPIO_MODE_INPUT;
+        busy_conf.pin_bit_mask = (1ULL << PIN_NUM_BUSY);
+        busy_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        busy_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+        busy_conf.intr_type = GPIO_INTR_DISABLE;
+        ESP_ERROR_CHECK(gpio_config(&busy_conf));
+
+        // --- SPI setup
+        spi_bus_config_t buscfg = {};
+        buscfg.mosi_io_num = PIN_NUM_MOSI;
+        buscfg.miso_io_num = -1;
+        buscfg.sclk_io_num = PIN_NUM_CLK;
+        buscfg.quadwp_io_num = -1;
+        buscfg.quadhd_io_num = -1;
+        buscfg.max_transfer_sz = 4096;
         ESP_ERROR_CHECK(spi_bus_initialize(EPAPER_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
-        // --- SPI device setup ---
         spi_device_interface_config_t devcfg = {};
         devcfg.mode = 0;
         devcfg.clock_speed_hz = 4 * 1000 * 1000;
         devcfg.spics_io_num = PIN_NUM_CS;
         devcfg.queue_size = 3;
-
         ESP_ERROR_CHECK(spi_bus_add_device(EPAPER_HOST, &devcfg, &spi_));
 
-        // --- EPD driver init ---
-        ESP_ERROR_CHECK(epaper.init(spi_, PIN_NUM_BUSY, PIN_NUM_RST, PIN_NUM_DC));
-        epaper.reset();
+        // --- SSD1680 handle setup
+        epd_.spi = spi_;
+        epd_.spi_timeout_ms = 1000;
+        epd_.cs_pin = PIN_NUM_CS;
+        epd_.dc_pin = PIN_NUM_DC;
+        epd_.reset_pin = PIN_NUM_RST;
+        epd_.busy_pin = PIN_NUM_BUSY;
+        epd_.Color_Depth = 1; // black/white
+        epd_.Scan_Mode = WideScan;
+        epd_.Resolution_X = EPD_WIDTH;
+        epd_.Resolution_Y = EPD_HEIGHT;
+
+        // --- Initialize and show pattern
+        SSD1680_Init(&epd_);
+        SSD1680_Clear(&epd_, ColorWhite);
+        SSD1680_Checker(&epd_);
+        SSD1680_Refresh(&epd_, FullRefresh);
 
         ESP_LOGI(TAG, "SSD1680 display initialized successfully.");
         return ESP_OK;
     }
 
-    void fill(uint8_t color) override {}
-    void drawPixel(int x, int y, bool color) override {}
+    void fill(uint8_t color) override {
+        SSD1680_Clear(&epd_, color ? ColorBlack : ColorWhite);
+    }
+
+    void drawPixel(int x, int y, bool color) override {
+        // not implemented for this test
+    }
 
     void show() override {
-        ESP_LOGI(TAG, "Displaying test pattern...");
-        // Example: send checkerboard pattern to SSD1680 RAM
-        constexpr size_t WIDTH = 212;
-        constexpr size_t HEIGHT = 104;
-        constexpr size_t BYTES = (WIDTH * HEIGHT) / 8;
-        static uint8_t framebuffer[BYTES];
-
-        // Create simple pattern
-        for (size_t i = 0; i < BYTES; ++i) {
-            framebuffer[i] = (i & 1) ? 0xAA : 0x55;  // alternating pattern
-        }
-
-        // SSD1680 typical sequence
-        epaper.send_command(0x24);  // write RAM black/white
-        epaper.send_data(framebuffer, BYTES);
-
-        // Trigger display refresh
-        epaper.send_command(0x22);  // display update control
-        uint8_t data = 0xC7;
-        epaper.send_data(&data, 1);
-        epaper.send_command(0x20);  // master activation
-        epaper.wait_ready();
-
-        ESP_LOGI(TAG, "Pattern displayed.");
+        ESP_LOGI(TAG, "Refreshing display...");
+        SSD1680_Refresh(&epd_, FullRefresh);
     }
 
     void drawChar(int x, int y, char c, const TextStyle& style) override {}
     void drawText(int x, int y, const char *str, const TextStyle& style) override {}
-
-private:
-    EpaperDriver epaper;
-    spi_device_handle_t spi_ = nullptr;
 };
