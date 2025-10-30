@@ -20,7 +20,7 @@ void DisplayManager::Init()
 
     LOCK(mutex);
 
-    driver.Init(hardwareManager.GetI2CBus());
+    display.Init();//hardwareManager.GetI2CBus());
     initGuard.SetReady();
     ESP_LOGI(TAG, "DisplayManager initialized.");
 }
@@ -33,7 +33,6 @@ void DisplayManager::Tick(TickContext &ctx)
     if (!ctx.HasElapsed(lastDisplayUpdate, DISPLAY_UPDATE_INTERVAL))
         return;
 
-    SSD1306 &display = driver.GetDisplay();
     display.fill(0);
 
     DrawIcons(display);
@@ -43,7 +42,7 @@ void DisplayManager::Tick(TickContext &ctx)
     ctx.MarkExecuted(lastDisplayUpdate, DISPLAY_UPDATE_INTERVAL);
 }
 
-void DisplayManager::DrawIcons(SSD1306 &display)
+void DisplayManager::DrawIcons(Display &display)
 {
     TextStyle iconStyle(&font8x8sym, 1, true);
 
@@ -71,7 +70,7 @@ void DisplayManager::DrawIcons(SSD1306 &display)
 
 }
 
-void DisplayManager::DrawSensorTemperatures(SSD1306 &display)
+void DisplayManager::DrawSensorTemperatures(Display &display)
 {
     const int sensorCount = sensorManager.GetSensorCount();
     if (sensorCount <= 0)

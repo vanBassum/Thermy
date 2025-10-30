@@ -43,7 +43,7 @@ dependencies:
   idf:
     source:
       type: idf
-    version: 5.5.1
+    version: 5.5.0
 direct_dependencies:
 - espressif/cJSON
 - espressif/ds18b20
@@ -51,5 +51,5 @@ direct_dependencies:
 - espressif/onewire_bus
 - idf
 manifest_hash: a62b8d867d4f77d2b2c2455e4a6173793039f028e4ebc347fe94b4c24a284321
-target: esp32c3
+target: esp32
 version: 2.0.0

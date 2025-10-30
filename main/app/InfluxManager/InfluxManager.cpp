@@ -13,6 +13,7 @@ void InfluxManager::Init()
 
     LOCK(_mutex);
 
+
     settingsManager.Access([this](const RootSettings &settings)
                            {
         memcpy(influxBaseUrl, settings.system.influxBaseUrl, MIN(sizeof(influxBaseUrl), sizeof(settings.system.influxBaseUrl)));
@@ -63,6 +64,7 @@ void InfluxManager::Tick(TickContext &ctx)
 
 void InfluxManager::Work()
 {
+        return;
     InfluxClient _client;
     _client.Init(influxBaseUrl, influxApiKey, influxOrganisation, influxBucket);
 

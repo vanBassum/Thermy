@@ -5,7 +5,7 @@
 #include "esp_log.h"
 #include "TickContext.h"
 #include "SensorManager.h"
-#include "DisplayDriver.h"
+#include "Display.h"
 #include "WifiManager.h"
 #include "TimeManager.h"
 #include "InfluxManager.h"
@@ -15,7 +15,7 @@
 class DisplayManager
 {
     inline static constexpr const char *TAG = "DisplayManager";
-    inline static constexpr Milliseconds DISPLAY_UPDATE_INTERVAL = Millis(500);
+    inline static constexpr Milliseconds DISPLAY_UPDATE_INTERVAL = Millis(10000);
 
 public:
     explicit DisplayManager(ServiceProvider &ctx);
@@ -29,13 +29,15 @@ private:
     TimeManager& timeManager;
     InfluxManager& influxManager;
     HardwareManager& hardwareManager;
+
     InitGuard initGuard;
     Mutex mutex;
-    DisplayDriver driver;
     Milliseconds lastDisplayUpdate;
     int rotator = 0;
 
-    void DrawIcons(SSD1306 &display);
-    void DrawSensorTemperatures(SSD1306 &display);
+    Display_SSD1680 display;
+
+    void DrawIcons(Display &display);
+    void DrawSensorTemperatures(Display &display);
 };
 
