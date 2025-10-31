@@ -157,12 +157,27 @@ static void testingblabla(spi_device_handle_t spi, gpio_num_t pin_dc, gpio_num_t
       }
     };
 
+    // bottom-left corner
     Rect(0, 0, 1, 1);
     Rect(1, 1, 1, 1);
     Rect(2, 2, 1, 1);
-    Rect(3, 3, 1, 1);
-    Rect(4, 4, 1, 1);
-    Rect(5, 5, 1, 1);
+
+    // bottom-right corner
+    Rect(WIDTH - 1, 0, 1, 1);
+    Rect(WIDTH - 2, 1, 1, 1);
+    Rect(WIDTH - 3, 2, 1, 1);
+
+    // top-left corner
+    Rect(0, HEIGHT - 1, 1, 1);
+    Rect(1, HEIGHT - 2, 1, 1);
+    Rect(2, HEIGHT - 3, 1, 1);
+
+    // top-right corner
+    Rect(WIDTH - 1, HEIGHT - 1, 1, 1);
+    Rect(WIDTH - 2, HEIGHT - 2, 1, 1);
+    Rect(WIDTH - 3, HEIGHT - 3, 1, 1);
+
+
     Rect(10, 10, 10, 10);
     Rect(30, 10, 10, 10);
     Rect(10, 30, 10, 10);
