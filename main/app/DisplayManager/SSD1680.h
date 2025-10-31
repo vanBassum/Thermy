@@ -1,90 +1,189 @@
 #pragma once
-
-#include <stdint.h>
-#include "esp_err.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+#include <vector>
+#include <cstring>
+#include <algorithm>
 
-// https://github.com/Erwin-Zhuang/SSD1680_Driver/blob/main/Src/SSD1680.c
+// --- SSD1680 command definitions ---
+static constexpr uint8_t CMD_SW_RESET         = 0x12;
+static constexpr uint8_t CMD_DRIVER_CONTROL   = 0x01;
+static constexpr uint8_t CMD_DATA_ENTRY_MODE  = 0x11;
+static constexpr uint8_t CMD_SET_RAMXPOS      = 0x44;
+static constexpr uint8_t CMD_SET_RAMYPOS      = 0x45;
+static constexpr uint8_t CMD_SET_RAMX_COUNTER = 0x4E;
+static constexpr uint8_t CMD_SET_RAMY_COUNTER = 0x4F;
+static constexpr uint8_t CMD_WRITE_BW_DATA    = 0x24;
+static constexpr uint8_t CMD_MASTER_ACTIVATE  = 0x20;
+static constexpr uint8_t CMD_UPDATE_DISPLAY   = 0x22;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+// Your chosen logical orientation:
+static constexpr uint16_t WIDTH  = 122;
+static constexpr uint16_t HEIGHT = 250;
 
-// --- Command set (unchanged)
-#define SSD1680_GATE_SCAN 0x01
-#define SSD1680_GATE_VOLTAGE 0x03
-#define SSD1680_SOURCE_VOLTAGE 0x04
-#define SSD1680_BOOSTER_SOFT_START 0x0C
-#define SSD1680_GATE_SCAN_START 0x0F
-#define SSD1680_DATA_ENTRY_MODE 0x11
-#define SSD1680_SW_RESET 0x12
-#define SSD1680_SELECT_TEMP_SENSOR 0x18
-#define SSD1680_WRITE_TEMP 0x1A
-#define SSD1680_READ_TEMP 0x1B
-#define SSD1680_MASTER_ACTIVATION 0x20
-#define SSD1680_UPDATE_CONTROL_1 0x21
-#define SSD1680_UPDATE_CONTROL_2 0x22
-#define SSD1680_WRITE_BLACK 0x24
-#define SSD1680_WRITE_RED 0x26
-#define SSD1680_READ 0x27
-#define SSD1680_VCOM_VOLTAGE 0x2C
-#define SSD1680_READ_USER_ID 0x2E
-#define SSD1680_BORDER 0x3C
-#define SSD1680_RAM_READ_OPT 0x41
-#define SSD1680_RAM_X_RANGE 0x44
-#define SSD1680_RAM_Y_RANGE 0x45
-#define SSD1680_PATTERN_RED 0x46
-#define SSD1680_PATTERN_BLACK 0x47
-#define SSD1680_RAM_X 0x4E
-#define SSD1680_RAM_Y 0x4F
-#define SSD1680_NOP 0x7F
+static constexpr uint16_t BYTES_PER_LINE = (WIDTH + 7) / 8;
+static constexpr uint32_t FRAME_BYTES    = (uint32_t)BYTES_PER_LINE * HEIGHT;
 
-// --- Enums (unchanged)
-enum SSD1680_Color { ColorBlack=0, ColorWhite, ColorRed, ColorAnotherRed };
-enum SSD1680_Pattern { Pattern8=0, Pattern16, Pattern32, Pattern64, Pattern128, Pattern256, PatternSolid=7 };
-enum SSD1680_ScanMode { WideScan=0, NarrowScan };
-enum SSD1680_RAMBank { RAMBlack=0, RAMRed };
-enum SSD1680_DataEntryMode {
-  LeftThenUp=0, RightThenUp, LeftThenDown, RightThenDown,
-  UpThenLeft, UpThenRight, DownThenLeft, DownThenRight
-};
-enum SSD1680_RefreshMode {
-  FullRefresh=0xF7, PartialRefresh=0xFF, FastFullRefresh=0xC7, FastPartialRefresh=0xCF
-};
+// BUSY is usually active-low on SSD1680 modules
+static constexpr bool BUSY_ACTIVE_LOW = true;
 
-// --- Handle: ESP-IDF flavored
-typedef struct {
-  spi_device_handle_t spi;      // SPI device
-  int spi_timeout_ms;           // timeout for transactions
-  gpio_num_t cs_pin;            // manual CS (set spics_io_num=-1 on device)
-  gpio_num_t dc_pin;            // D/C
-  gpio_num_t reset_pin;         // !RESET
-  gpio_num_t busy_pin;          // BUSY (high=busy on most)
-  uint8_t Color_Depth;          // 1 or 2 bits
-  enum SSD1680_ScanMode Scan_Mode;
-  uint8_t Resolution_X;         // pixels, multiple of 8
-  uint16_t Resolution_Y;        // pixels
-#ifdef CONFIG_SSD1680_DEBUG_LED
-  gpio_num_t led_pin;           // optional activity LED
-  bool led_present;
-#endif
-} SSD1680_HandleTypeDef;
+static gpio_num_t PIN_DC;
+static gpio_num_t PIN_RST;
+static gpio_num_t PIN_BUSY;
 
-// Connectivity
-void SSD1680_Reset(SSD1680_HandleTypeDef *hepd);
-void SSD1680_Init(SSD1680_HandleTypeDef *hepd);
-
-// High-level
-esp_err_t SSD1680_Clear(SSD1680_HandleTypeDef *hepd, const enum SSD1680_Color color);
-esp_err_t SSD1680_Refresh(SSD1680_HandleTypeDef *hepd, const enum SSD1680_RefreshMode mode);
-esp_err_t SSD1680_Border(SSD1680_HandleTypeDef *hepd, const enum SSD1680_Color color);
-esp_err_t SSD1680_GetRegion(SSD1680_HandleTypeDef *hepd, const uint8_t left, const uint16_t top,
-                            const uint8_t width, const uint16_t height, uint8_t *data_k, uint8_t *data_r);
-esp_err_t SSD1680_SetRegion(SSD1680_HandleTypeDef *hepd, const uint8_t left, const uint16_t top,
-                            const uint8_t width, const uint16_t height, const uint8_t *data_k, const uint8_t *data_r);
-esp_err_t SSD1680_Checker(SSD1680_HandleTypeDef *hepd);
-
-#ifdef __cplusplus
+static bool is_busy_level(int lvl) {
+    return BUSY_ACTIVE_LOW ? (lvl == 0) : (lvl == 1);
 }
-#endif
+
+static bool wait_busy(uint32_t timeout_ms = 5000) {
+    uint32_t waited = 0;
+    // Wait until becomes busy (optional)
+    if (!is_busy_level(gpio_get_level(PIN_BUSY))) {
+        while (!is_busy_level(gpio_get_level(PIN_BUSY)) && waited < timeout_ms) {
+            vTaskDelay(pdMS_TO_TICKS(1));
+            ++waited;
+        }
+    }
+    // Now wait until not busy
+    waited = 0;
+    while (is_busy_level(gpio_get_level(PIN_BUSY)) && waited < timeout_ms) {
+        vTaskDelay(pdMS_TO_TICKS(1));
+        ++waited;
+    }
+    return !is_busy_level(gpio_get_level(PIN_BUSY));
+}
+
+static void write_cmd(spi_device_handle_t spi, uint8_t cmd) {
+    gpio_set_level(PIN_DC, 0);
+    spi_transaction_t t = {};
+    t.length = 8;
+    t.tx_buffer = &cmd;
+    ESP_ERROR_CHECK(spi_device_transmit(spi, &t));
+}
+
+static void write_data(spi_device_handle_t spi, const uint8_t *data, size_t len) {
+    gpio_set_level(PIN_DC, 1);
+    spi_transaction_t t = {};
+    t.length = len * 8;
+    t.tx_buffer = data;
+    ESP_ERROR_CHECK(spi_device_transmit(spi, &t));
+}
+
+static void testingblabla(spi_device_handle_t spi, gpio_num_t pin_dc, gpio_num_t pin_rst, gpio_num_t pin_busy)
+{
+    PIN_DC = pin_dc;
+    PIN_RST = pin_rst;
+    PIN_BUSY = pin_busy;
+
+    const uint16_t WIDTH = 122;
+    const uint16_t HEIGHT = 250;
+    const uint16_t BYTES_PER_LINE = (WIDTH + 7) / 8;
+    const uint32_t FRAME_BYTES = (uint32_t)BYTES_PER_LINE * HEIGHT;
+
+    // --- Reset ---
+    gpio_set_level(PIN_RST, 0);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    gpio_set_level(PIN_RST, 1);
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    // --- Software reset ---
+    write_cmd(spi, 0x12);
+    wait_busy();
+
+    // --- Driver output control ---
+    uint8_t driver_ctrl[3] = { (uint8_t)((HEIGHT - 1) & 0xFF), (uint8_t)(((HEIGHT - 1) >> 8) & 0xFF), 0x00 };
+    write_cmd(spi, 0x01);
+    write_data(spi, driver_ctrl, 3);
+
+    // --- Booster soft start control ---
+    uint8_t booster_softstart[4] = { 0xD7, 0xD6, 0x9D };
+    write_cmd(spi, 0x0C);
+    write_data(spi, booster_softstart, 3);
+
+    // --- VCOM Voltage ---
+    uint8_t vcom = 0xA8; // typical value
+    write_cmd(spi, 0x2C);
+    write_data(spi, &vcom, 1);
+
+    // --- Dummy line period / Gate line width ---
+    uint8_t dummy_line = 0x1A;
+    uint8_t gate_width = 0x08;
+    write_cmd(spi, 0x3A);
+    write_data(spi, &dummy_line, 1);
+    write_cmd(spi, 0x3B);
+    write_data(spi, &gate_width, 1);
+
+    // --- Data entry mode ---
+    uint8_t data_entry = 0x03; // X+, Y+
+    write_cmd(spi, 0x11);
+    write_data(spi, &data_entry, 1);
+
+    // --- Set RAM X range (byte units) ---
+    // LilyGO T5 2.13" has 8-pixel offset: start at 1, end at (WIDTH/8 + 1)
+    uint8_t x_range[2] = { 0x01, (uint8_t)(((WIDTH - 1) >> 3) + 1) };
+    write_cmd(spi, 0x44);
+    write_data(spi, x_range, 2);
+
+    uint8_t y_range[4] = { 0x00, 0x00, (uint8_t)((HEIGHT - 1) & 0xFF), (uint8_t)(((HEIGHT - 1) >> 8) & 0xFF) };
+    write_cmd(spi, 0x45);
+    write_data(spi, y_range, 4);
+
+    // --- Set RAM X counter (start address) ---
+    uint8_t x_start = 0x01;
+    write_cmd(spi, 0x4E);
+    write_data(spi, &x_start, 1);
+    write_cmd(spi, 0x4F);
+    uint8_t yz[2] = { 0x00, 0x00 };
+    write_data(spi, yz, 2);
+    wait_busy();
+
+    // --- Prepare framebuffer ---
+    static uint8_t frame[FRAME_BYTES];
+    memset(frame, 0xFF, sizeof(frame)); // white background
+
+    auto Rect = [](int x0, int y0, int w, int h)
+    {
+      int x1 = std::min(x0 + w, (int)WIDTH);
+      int y1 = std::min(y0 + h, (int)HEIGHT);
+      for (int y = y0; y < y1; ++y) {
+          for (int x = x0; x < x1; ++x) {
+              uint32_t byte_index = (y * BYTES_PER_LINE) + (x >> 3);
+              uint8_t bit_mask = 0x80 >> (x & 7);
+              frame[byte_index] &= ~bit_mask; // black pixel = 0
+          }
+      }
+    };
+
+    Rect(0, 0, 1, 1);
+    Rect(1, 1, 1, 1);
+    Rect(2, 2, 1, 1);
+    Rect(3, 3, 1, 1);
+    Rect(4, 4, 1, 1);
+    Rect(5, 5, 1, 1);
+    Rect(10, 10, 10, 10);
+    Rect(30, 10, 10, 10);
+    Rect(10, 30, 10, 10);
+
+
+    // --- Write black/white data ---
+    write_cmd(spi, 0x24);
+    write_data(spi, frame, FRAME_BYTES);
+
+    // --- Display update control ---
+    uint8_t display_update = 0xF7; // full refresh
+    write_cmd(spi, 0x22);
+    write_data(spi, &display_update, 1);
+    write_cmd(spi, 0x20); // Master activate
+    wait_busy(10000);
+
+    // --- Deep sleep ---
+    write_cmd(spi, 0x10);
+    uint8_t sleep = 0x01;
+    write_data(spi, &sleep, 1);
+
+    ESP_LOGI("SSD1680", "Frame drawn successfully!");
+}
+

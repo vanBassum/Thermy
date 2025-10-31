@@ -4,7 +4,6 @@ set(SOURCE_FILES_LIST
     "main.cpp"
     "app/DisplayManager/DisplayManager.cpp"
     "app/DisplayManager/SSD1306.cpp"
-    "app/DisplayManager/SSD1680.cpp"
     "app/InfluxManager/InfluxManager.cpp"
     "app/SensorManager/SensorManager.cpp"
     "app/SettingsManager/SettingsManager.cpp"
