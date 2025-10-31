@@ -4,6 +4,7 @@
 #include "RecursiveMutex.h"
 #include "DateTime.h"
 #include "TickContext.h"
+#include "SettingsManager.h"
 
 class TimeManager
 {
@@ -24,6 +25,9 @@ public:
 
 private:
     ServiceProvider &_ctx;
+    SettingsManager& settingsManager;
+
+
     InitGuard initGuard;
     RecursiveMutex mutex;
     bool synced = false;

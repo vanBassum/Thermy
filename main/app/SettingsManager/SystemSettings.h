@@ -20,6 +20,8 @@ struct SystemSettings : public ISettingsGroup
     char influxOrganisation[64];
     char influxBucket[64];    
 
+    char timezone[64];
+
     uint32_t oneWireGpio;
 
     static const SettingsDescriptor SCHEMA[];
@@ -40,6 +42,7 @@ inline const SettingsDescriptor SystemSettings::SCHEMA[] = {
     DESCRIPTOR_FIELD("influx_org",  influxOrganisation, INFLUX_ORGANISATION),
     DESCRIPTOR_FIELD("influx_bkt",  influxBucket,       INFLUX_BUCKET),
     DESCRIPTOR_FIELD("onewire_gpio", oneWireGpio,       2),
+    DESCRIPTOR_FIELD("timezone",    timezone,           DEFAULT_TIMEZONE),
 
 };
 

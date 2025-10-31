@@ -38,6 +38,14 @@ void DisplayManager::Tick(TickContext &ctx)
     DrawIcons(display);
     DrawSensorTemperatures(display);
 
+    DateTime now = DateTime::Now();
+    char dateStr[12];
+    char timeStr[10];
+    now.ToStringLocal(dateStr, sizeof(dateStr), "%d-%m-%Y");
+    now.ToStringLocal(timeStr, sizeof(timeStr), "%H:%M:%S");
+    display.drawText(0, 250-30, dateStr, TextStyle(&Font5x7, 2, true));
+    display.drawText(0, 250-14, timeStr, TextStyle(&Font5x7, 2, true));
+
     display.show();
     ctx.MarkExecuted(lastDisplayUpdate, DISPLAY_UPDATE_INTERVAL);
 }
@@ -47,7 +55,7 @@ void DisplayManager::DrawIcons(Display &display)
     TextStyle iconStyle(&font8x8sym, 1, true);
 
     // Left column of icons
-    const int iconX = 72-10;
+    const int iconX = 0;
     int y = 0;
 
     // --- WiFi icon (top)
@@ -79,7 +87,7 @@ void DisplayManager::DrawSensorTemperatures(Display &display)
     const uint8_t textSize = sensorCount <= 2 ? 2 : 1;
     const int lineHeight = sensorCount <= 2 ? 18 : 9;
     const int baseY = 0;
-    const int textX = 0;
+    const int textX = 10;
 
     TextStyle tempStyle(&Font5x7, textSize, true);
 

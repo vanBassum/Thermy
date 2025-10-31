@@ -12,6 +12,7 @@ static TimeManager *s_instance = nullptr;
 
 TimeManager::TimeManager(ServiceProvider &ctx)
     : _ctx(ctx)
+    , settingsManager(ctx.GetSettingsManager())
 {
     s_instance = this;
 }
@@ -29,7 +30,18 @@ void TimeManager::Init()
 
     LOCK(mutex);
 
-    ESP_LOGI(TAG, "Initializing SNTP client...");
+    // Access settings and apply timezone
+    settingsManager.Access([](RootSettings& settings) {
+        if (strlen(settings.system.timezone) > 0) {
+            setenv("TZ", settings.system.timezone, 1);
+            tzset();
+            ESP_LOGI("TimeManager", "Timezone set to: %s", settings.system.timezone);
+        } else {
+            ESP_LOGW("TimeManager", "Timezone not configured; using default UTC");
+        }
+    });
+
+    ESP_LOGI("TimeManager", "Initializing SNTP client...");
     esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
     config.sync_cb = &TimeManager::TimeSyncCallback;
     config.start = true;
@@ -37,6 +49,7 @@ void TimeManager::Init()
 
     initGuard.SetReady();
 }
+
 
 void TimeManager::TimeSyncCallback(struct timeval *tv)
 {
