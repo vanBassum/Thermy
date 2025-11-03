@@ -91,6 +91,7 @@ extern "C" void app_main(void)
 {
     esp_log_level_set("esp-x509-crt-bundle", ESP_LOG_WARN);
     esp_log_level_set("pm", ESP_LOG_DEBUG);
+    esp_log_level_set("wifi", ESP_LOG_WARN);
 
     ESP_LOGI(TAG, "Initializing NVS...");
     NvsStorage::InitNvsPartition("nvs");

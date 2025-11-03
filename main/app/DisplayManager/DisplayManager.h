@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include "TickContext.h"
 #include "Display_WT32SC01.h"
+#include "lvgl.h"
 
 class DisplayManager
 {
@@ -17,4 +18,9 @@ private:
     InitGuard initGuard;
     Mutex mutex;
     Display_WT32SC01 display;
+    Task task;
+    Timer timer;
+
+    void Work();
+    void LvglTickCb(void *arg);
 };
