@@ -117,6 +117,25 @@ bool WifiManager::IsConnected() const
     return connected;
 }
 
+bool WifiManager::GetIp(char *outBuffer, size_t bufferLen) const
+{
+    if (!connected || outBuffer == nullptr || bufferLen == 0)
+        return false;
+
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (!netif)
+        return false;
+
+    esp_netif_ip_info_t ip_info;
+    if (esp_netif_get_ip_info(netif, &ip_info) != ESP_OK)
+        return false;
+
+    // Format IP address safely into provided buffer
+    snprintf(outBuffer, bufferLen, IPSTR, IP2STR(&ip_info.ip));
+    return true;
+}
+
+
 bool WifiManager::WaitForConnection(uint32_t timeoutMs)
 {
     uint32_t start = esp_log_timestamp();

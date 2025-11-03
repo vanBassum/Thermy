@@ -18,6 +18,7 @@ public:
     bool Connect(TickType_t timeoutTicks = portMAX_DELAY);
     void Disconnect();
     bool IsConnected() const;
+    bool GetIp(char *outBuffer, size_t bufferLen) const;
 
 private:
     ServiceProvider &_ctx;

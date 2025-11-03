@@ -70,6 +70,20 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 1.1.2
+  espressif/esp_lcd_touch_gt911:
+    component_hash: acc1c184358aa29ef72506f618c9c76a8cc2bf12af38a2bff3d44d84f3a08857
+    dependencies:
+    - name: espressif/esp_lcd_touch
+      registry_url: https://components.espressif.com
+      require: public
+      version: ^1.1.0
+    - name: idf
+      require: private
+      version: '>=4.4.2'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.1.3
   espressif/mdns:
     component_hash: 3ec0af5f6bce310512e90f482388d21cc7c0e99668172d2f895356165fc6f7c5
     dependencies:
@@ -107,10 +121,11 @@ direct_dependencies:
 - espressif/ds18b20
 - espressif/esp_lcd_st7796
 - espressif/esp_lcd_touch
+- espressif/esp_lcd_touch_gt911
 - espressif/mdns
 - espressif/onewire_bus
 - idf
 - lvgl/lvgl
-manifest_hash: 4b1bf9ae92b4031ddd83c011d9740430eebb7d40b868d10659095f32a0a2809d
+manifest_hash: 711b30012999b767fb979487ca54302c1e56f1f10ccc497b295f4b0c9834b8fe
 target: esp32
 version: 2.0.0

@@ -22,3 +22,4 @@ dependencies:
   espressif/esp_lcd_touch: ^1
   atanisoft/esp_lcd_ili9488: ^1.0.11
   espressif/esp_lcd_st7796: ^1.0.3
+  espressif/esp_lcd_touch_gt911: ^1.0.5

@@ -1,6 +1,9 @@
 #include "DisplayManager.h"
+#include "DateTime.h"
+#include "core_utils.h"
 
 DisplayManager::DisplayManager(ServiceProvider &ctx)
+    : wifiManager(ctx.GetWifiManager())
 {
 }
 
@@ -12,8 +15,8 @@ void DisplayManager::Init()
     LOCK(mutex);
     ESP_LOGI(TAG, "Initializing DisplayManager...");
 
-    lv_init();            // LVGL first
-    display.Init();       // This now sets up the LVGL driver too
+    lv_init();
+    display.Init();
 
     // --- LVGL tick (5ms)
     timer.Init("LvglTickTimer", pdMS_TO_TICKS(5), true);
@@ -25,44 +28,7 @@ void DisplayManager::Init()
     task.SetHandler([this]() { Work(); });
     task.Run();
 
-    // --- LVGL visual test ---
-    lv_obj_clean(lv_scr_act());
-
-    // Set screen background to solid black (prevents white AA edges)
-    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_black(), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_COVER, LV_PART_MAIN);
-
-    // Box + label helper lambda
-    auto make_box = [](lv_color_t color, const char *text, int x, int y) {
-        lv_obj_t *box = lv_obj_create(lv_scr_act());
-        lv_obj_set_size(box, 100, 60);
-        lv_obj_set_pos(box, x, y);
-        lv_obj_set_style_bg_color(box, color, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(box, LV_OPA_COVER, LV_PART_MAIN);   // Fully opaque
-        lv_obj_set_style_border_width(box, 0, LV_PART_MAIN);        // No border AA
-
-        lv_obj_t *label = lv_label_create(box);
-        lv_label_set_text(label, text);
-        lv_obj_center(label);
-    };
-
-    // Draw solid boxes for color verification
-    make_box(lv_color_hex(0xFF0000), "RED",   40, 40);
-    make_box(lv_color_hex(0x00FF00), "GREEN", 160, 40);
-    make_box(lv_color_hex(0x0000FF), "BLUE",  280, 40);
-    make_box(lv_color_hex(0xFFFF00), "YELLOW", 400, 40);
-    make_box(lv_color_hex(0xFFFFFF), "WHITE",  40, 120);
-    make_box(lv_color_hex(0x000000), "BLACK", 160, 120);
-
-    // Text to verify rendering
-    lv_obj_t *label = lv_label_create(lv_scr_act());
-    lv_label_set_text(label, "LVGL WT32-SC01 Test");
-    lv_obj_align(label, LV_ALIGN_BOTTOM_MID, 0, -20);
-
-    // Force immediate render
-    lv_refr_now(NULL);
-
-
+    UiSetup();
 
     initGuard.SetReady();
     ESP_LOGI(TAG, "DisplayManager initialized successfully.");
@@ -70,25 +36,125 @@ void DisplayManager::Init()
 
 void DisplayManager::Work()
 {
-    const TickType_t tickPeriod = pdMS_TO_TICKS(5);
     uint32_t delayMs;
+    TickType_t lastUiUpdate = xTaskGetTickCount();
 
     while (true)
     {
-        // Process LVGL tasks and get how long to wait until the next one
         delayMs = lv_timer_handler();
 
-        // Convert to ticks, with a safe minimum of 5ms
-        if (delayMs < 5)
-            delayMs = 5;
+        if (xTaskGetTickCount() - lastUiUpdate > pdMS_TO_TICKS(1000))
+        {
+            lastUiUpdate = xTaskGetTickCount();
+            UiUpdate();
+        }
 
-        vTaskDelay(pdMS_TO_TICKS(delayMs));
+        vTaskDelay(pdMS_TO_TICKS(CLAMP(delayMs, 5, 100)));
     }
 }
-
 
 void DisplayManager::LvglTickCb(void *arg)
 {
     (void)arg;
     lv_tick_inc(5);
+}
+
+void DisplayManager::UiSetup()
+{
+    lv_obj_clean(lv_scr_act());
+    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_COVER, LV_PART_MAIN);
+
+    // --- Top bar ---
+    labelTime = lv_label_create(lv_scr_act());
+    lv_obj_align(labelTime, LV_ALIGN_TOP_LEFT, 15, 8);
+    lv_label_set_text(labelTime, "00:00:00");
+    lv_obj_set_style_text_color(labelTime, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_font(labelTime, &lv_font_montserrat_14, LV_PART_MAIN);
+
+    labelIP = lv_label_create(lv_scr_act());
+    lv_obj_align(labelIP, LV_ALIGN_TOP_RIGHT, -15, 8);
+    lv_label_set_text(labelIP, "192.168.0.123");
+    lv_obj_set_style_text_color(labelIP, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_font(labelIP, &lv_font_montserrat_14, LV_PART_MAIN);
+
+    // --- Temperature section ---
+    static const lv_coord_t boxW = 140;
+    static const lv_coord_t boxH = 50;
+    static const lv_coord_t spacing = 10;
+    static const lv_coord_t startY = 40;
+    static const lv_coord_t startX = 10;
+    
+    for (int i = 0; i < 4; i++)
+    {
+        // Container box
+        lv_obj_t *box = lv_obj_create(lv_scr_act());
+        lv_obj_set_size(box, boxW, boxH);
+        lv_obj_set_pos(box, startX, startY + i * (boxH + spacing));
+        lv_obj_set_style_bg_color(box, lv_color_hex(0x202020), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(box, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_border_width(box, 2, LV_PART_MAIN);
+        lv_obj_set_style_border_color(box, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
+        lv_obj_set_style_radius(box, 8, LV_PART_MAIN);
+
+        // Temperature value
+        lv_obj_t *label = lv_label_create(box);
+        lv_label_set_text(label, "00.00°C");
+        lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_set_style_text_color(label, lv_color_white(), LV_PART_MAIN);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_28, LV_PART_MAIN);
+
+        tempBoxes[i] = box;
+        tempLabels[i] = label;
+    }
+
+    // --- Temperature history chart ---
+    const lv_coord_t chartX = startX + boxW + 20; // to the right of boxes
+    const lv_coord_t chartY = startY;
+    const lv_coord_t chartW = LCD_HRES - chartX - 10;
+    const lv_coord_t chartH = (boxH + spacing) * 4 - spacing;
+
+    chart = lv_chart_create(lv_scr_act());
+    lv_obj_set_size(chart, chartW, chartH);
+    lv_obj_set_pos(chart, chartX, chartY);
+    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+    lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
+    lv_chart_set_point_count(chart, 30);   // 30 samples visible
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 0, 50);
+    lv_obj_set_style_bg_color(chart, lv_color_hex(0x101010), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(chart, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(chart, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(chart, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
+    lv_obj_set_style_radius(chart, 8, LV_PART_MAIN);
+
+    // Create one series per temperature channel
+    chartSeries[0] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
+    chartSeries[1] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_BLUE), LV_CHART_AXIS_PRIMARY_Y);
+    chartSeries[2] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_PRIMARY_Y);
+    chartSeries[3] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_YELLOW), LV_CHART_AXIS_PRIMARY_Y);
+
+}
+
+void DisplayManager::UiUpdate()
+{
+    // Update time
+    DateTime now = DateTime::Now();
+    char buf[32];
+
+    // day-month hh mm ss
+    now.ToStringLocal(buf, sizeof(buf), "%d-%m %H:%M:%S");
+    lv_label_set_text(labelTime, buf);
+
+    // Dummy IP placeholder (replace with actual later)
+    if(!wifiManager.GetIp(buf, sizeof(buf)))
+        snprintf(buf, sizeof(buf), "No IP");
+    lv_label_set_text(labelIP, buf);
+
+    // Update dummy temperatures
+    for (int i = 0; i < 4; i++)
+    {
+        float temp = 20.0f + (rand() % 100) / 10.0f; // 20.0–29.9°C
+        snprintf(buf, sizeof(buf), "%.2f°C", temp);
+        lv_label_set_text(tempLabels[i], buf);
+    }
 }
