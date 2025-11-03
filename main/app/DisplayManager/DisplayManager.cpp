@@ -87,29 +87,42 @@ void DisplayManager::UiSetup()
     static const lv_coord_t boxW = 100;
     static const lv_coord_t boxH = 50;
 
+    // Define matching colors for each channel
+    static const lv_color_t channelColors[4] = {
+        lv_palette_main(LV_PALETTE_RED),
+        lv_palette_main(LV_PALETTE_BLUE),
+        lv_palette_main(LV_PALETTE_GREEN),
+        lv_palette_main(LV_PALETTE_YELLOW)
+    };
+
     for (int i = 0; i < 4; i++)
     {
-        // Container box
         lv_obj_t *box = lv_obj_create(lv_scr_act());
         lv_obj_set_size(box, boxW, boxH);
         lv_obj_set_pos(box, startX, startY + i * (boxH + spacing));
+
+        // Slightly dark background
         lv_obj_set_style_bg_color(box, lv_color_hex(0x202020), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(box, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_border_width(box, 2, LV_PART_MAIN);
-        lv_obj_set_style_border_color(box, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
+
+        // Use chart color as border color
+        lv_obj_set_style_border_width(box, 3, LV_PART_MAIN);
+        lv_obj_set_style_border_color(box, channelColors[i], LV_PART_MAIN);
+
         lv_obj_set_style_radius(box, 8, LV_PART_MAIN);
         lv_obj_clear_flag(box, LV_OBJ_FLAG_SCROLLABLE);
 
-        // Temperature value
+        // Temperature label
         lv_obj_t *label = lv_label_create(box);
         lv_label_set_text(label, "00.00");
         lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_set_style_text_color(label, lv_color_white(), LV_PART_MAIN);
+        lv_obj_set_style_text_color(label, channelColors[i], LV_PART_MAIN); // text matches chart
         lv_obj_set_style_text_font(label, &lv_font_montserrat_28, LV_PART_MAIN);
 
         tempBoxes[i] = box;
         tempLabels[i] = label;
     }
+
 
     // --- Temperature history chart ---
     const lv_coord_t chartX = startX + boxW + 20;
@@ -131,7 +144,7 @@ void DisplayManager::UiSetup()
     lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR); // remove point markers
 
     // --- Enable Y-axis ticks and labels ---
-    //lv_chart_set_axis_tick(chart, LV_CHART_AXIS_PRIMARY_Y, 10, 5, 5, 2, true, 50);
+    // lv_chart_set_axis_tick(chart, LV_CHART_AXIS_PRIMARY_Y, 10, 5, 5, 2, true, 50);
 
     // Chart appearance
     lv_obj_set_style_bg_color(chart, lv_color_hex(0x101010), LV_PART_MAIN);
@@ -141,10 +154,10 @@ void DisplayManager::UiSetup()
     lv_obj_set_style_radius(chart, 8, LV_PART_MAIN);
 
     // Create one series per temperature channel
-    chartSeries[0] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
-    chartSeries[1] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_BLUE), LV_CHART_AXIS_PRIMARY_Y);
-    chartSeries[2] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_PRIMARY_Y);
-    chartSeries[3] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_YELLOW), LV_CHART_AXIS_PRIMARY_Y);
+    chartSeries[0] = lv_chart_add_series(chart, channelColors[0] , LV_CHART_AXIS_PRIMARY_Y);
+    chartSeries[1] = lv_chart_add_series(chart, channelColors[1] , LV_CHART_AXIS_PRIMARY_Y);
+    chartSeries[2] = lv_chart_add_series(chart, channelColors[2] , LV_CHART_AXIS_PRIMARY_Y);
+    chartSeries[3] = lv_chart_add_series(chart, channelColors[3] , LV_CHART_AXIS_PRIMARY_Y);
 }
 
 void DisplayManager::UiUpdate()
