@@ -109,7 +109,7 @@ void DisplayManager::UiSetup()
     }
 
     // --- Temperature history chart ---
-    const lv_coord_t chartX = startX + boxW + 20; // to the right of boxes
+    const lv_coord_t chartX = startX + boxW + 20;
     const lv_coord_t chartY = startY;
     const lv_coord_t chartW = LCD_HRES - chartX - 10;
     const lv_coord_t chartH = (boxH + spacing) * 4 - spacing;
@@ -117,10 +117,41 @@ void DisplayManager::UiSetup()
     chart = lv_chart_create(lv_scr_act());
     lv_obj_set_size(chart, chartW, chartH);
     lv_obj_set_pos(chart, chartX, chartY);
+
+    // Line chart without points
     lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
     lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
-    lv_chart_set_point_count(chart, 30);   // 30 samples visible
-    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 0, 50);
+    lv_chart_set_point_count(chart, 30);
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 0, 100);
+
+    // Hide dots, show only lines
+    lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR); // remove point markers
+
+    // --- Enable Y-axis ticks and labels ---
+    lv_chart_set_axis_tick(
+        chart,
+        LV_CHART_AXIS_PRIMARY_Y,
+        10,   // major tick length
+        5,    // minor tick length
+        5,    // number of labels (including min/max)
+        2,    // label precision (decimals)
+        true, // enable labels
+        50    // label width
+    );
+
+    // Optional: add X-axis ticks (for time/points)
+    lv_chart_set_axis_tick(
+        chart,
+        LV_CHART_AXIS_PRIMARY_X,
+        5,    // major tick length
+        2,    // minor tick length
+        6,    // number of labels
+        0,    // label precision
+        false,// no numeric labels for X-axis
+        20
+    );
+
+    // Chart appearance
     lv_obj_set_style_bg_color(chart, lv_color_hex(0x101010), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(chart, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_width(chart, 2, LV_PART_MAIN);
@@ -132,6 +163,7 @@ void DisplayManager::UiSetup()
     chartSeries[1] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_BLUE), LV_CHART_AXIS_PRIMARY_Y);
     chartSeries[2] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_PRIMARY_Y);
     chartSeries[3] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_YELLOW), LV_CHART_AXIS_PRIMARY_Y);
+
 
 }
 
@@ -156,5 +188,11 @@ void DisplayManager::UiUpdate()
         float temp = 20.0f + (rand() % 100) / 10.0f; // 20.0–29.9°C
         snprintf(buf, sizeof(buf), "%.2f°C", temp);
         lv_label_set_text(tempLabels[i], buf);
+
+        // Add temperature to chart
+        lv_chart_set_next_value(chart, chartSeries[i], (lv_coord_t)temp);
     }
+
+    // Refresh chart to reflect new data
+    lv_chart_refresh(chart);
 }
