@@ -3,6 +3,7 @@
 set(SOURCE_FILES_LIST
     "main.cpp"
     "app/DisplayManager/DisplayManager.cpp"
+    "app/DisplayManager/Display_WT32SC01.cpp"
     "app/DisplayManager/SSD1306.cpp"
     "app/DisplayManager/SSD1680.cpp"
     "app/InfluxManager/InfluxManager.cpp"
@@ -71,6 +72,9 @@ set(REQUIRED_COMPONENTS_LIST
     esp_timer
     esp-tls
     fatfs
+    esp_lcd 
+    lvgl 
+    esp_lcd_touch
 )
 
 # Register component with ESP-IDF

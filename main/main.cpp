@@ -45,7 +45,7 @@ AppContext appContext(g_stats, NUM_STATS);
 void TickAllServices(TickContext &ctx, SimpleStats stats[])
 {
     stats[0].AddValue(MeasureTick([&]() { appContext.GetSettingsManager().Tick(ctx); }));
-    stats[1].AddValue(MeasureTick([&]() { appContext.GetDisplayManager().Tick(ctx); }));
+    //stats[1].AddValue(MeasureTick([&]() { appContext.GetDisplayManager().Tick(ctx); }));
     stats[2].AddValue(MeasureTick([&]() { appContext.GetWifiManager().Tick(ctx); }));
     stats[3].AddValue(MeasureTick([&]() { appContext.GetTimeManager().Tick(ctx); }));
     stats[4].AddValue(MeasureTick([&]() { appContext.GetSensorManager().Tick(ctx); }));
