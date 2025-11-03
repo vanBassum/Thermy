@@ -20,12 +20,14 @@ void DisplayManager::Init()
 
     // --- LVGL tick (5ms)
     timer.Init("LvglTickTimer", pdMS_TO_TICKS(5), true);
-    timer.SetHandler([this]() { LvglTickCb(this); });
+    timer.SetHandler([this]()
+                     { LvglTickCb(this); });
     timer.Start();
 
     // --- Start LVGL task ---
     task.Init("DisplayTask", 5, 4096);
-    task.SetHandler([this]() { Work(); });
+    task.SetHandler([this]()
+                    { Work(); });
     task.Run();
 
     UiSetup();
@@ -79,12 +81,12 @@ void DisplayManager::UiSetup()
     lv_obj_set_style_text_font(labelIP, &lv_font_montserrat_14, LV_PART_MAIN);
 
     // --- Temperature section ---
-    static const lv_coord_t boxW = 140;
-    static const lv_coord_t boxH = 50;
-    static const lv_coord_t spacing = 10;
     static const lv_coord_t startY = 40;
     static const lv_coord_t startX = 10;
-    
+    static const lv_coord_t spacing = 15;
+    static const lv_coord_t boxW = 100;
+    static const lv_coord_t boxH = 50;
+
     for (int i = 0; i < 4; i++)
     {
         // Container box
@@ -96,10 +98,11 @@ void DisplayManager::UiSetup()
         lv_obj_set_style_border_width(box, 2, LV_PART_MAIN);
         lv_obj_set_style_border_color(box, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
         lv_obj_set_style_radius(box, 8, LV_PART_MAIN);
+        lv_obj_clear_flag(box, LV_OBJ_FLAG_SCROLLABLE);
 
         // Temperature value
         lv_obj_t *label = lv_label_create(box);
-        lv_label_set_text(label, "00.00°C");
+        lv_label_set_text(label, "00.00");
         lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_text_color(label, lv_color_white(), LV_PART_MAIN);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_28, LV_PART_MAIN);
@@ -128,28 +131,7 @@ void DisplayManager::UiSetup()
     lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR); // remove point markers
 
     // --- Enable Y-axis ticks and labels ---
-    lv_chart_set_axis_tick(
-        chart,
-        LV_CHART_AXIS_PRIMARY_Y,
-        10,   // major tick length
-        5,    // minor tick length
-        5,    // number of labels (including min/max)
-        2,    // label precision (decimals)
-        true, // enable labels
-        50    // label width
-    );
-
-    // Optional: add X-axis ticks (for time/points)
-    lv_chart_set_axis_tick(
-        chart,
-        LV_CHART_AXIS_PRIMARY_X,
-        5,    // major tick length
-        2,    // minor tick length
-        6,    // number of labels
-        0,    // label precision
-        false,// no numeric labels for X-axis
-        20
-    );
+    //lv_chart_set_axis_tick(chart, LV_CHART_AXIS_PRIMARY_Y, 10, 5, 5, 2, true, 50);
 
     // Chart appearance
     lv_obj_set_style_bg_color(chart, lv_color_hex(0x101010), LV_PART_MAIN);
@@ -163,8 +145,6 @@ void DisplayManager::UiSetup()
     chartSeries[1] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_BLUE), LV_CHART_AXIS_PRIMARY_Y);
     chartSeries[2] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_PRIMARY_Y);
     chartSeries[3] = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_YELLOW), LV_CHART_AXIS_PRIMARY_Y);
-
-
 }
 
 void DisplayManager::UiUpdate()
@@ -178,7 +158,7 @@ void DisplayManager::UiUpdate()
     lv_label_set_text(labelTime, buf);
 
     // Dummy IP placeholder (replace with actual later)
-    if(!wifiManager.GetIp(buf, sizeof(buf)))
+    if (!wifiManager.GetIp(buf, sizeof(buf)))
         snprintf(buf, sizeof(buf), "No IP");
     lv_label_set_text(labelIP, buf);
 
@@ -186,7 +166,7 @@ void DisplayManager::UiUpdate()
     for (int i = 0; i < 4; i++)
     {
         float temp = 20.0f + (rand() % 100) / 10.0f; // 20.0–29.9°C
-        snprintf(buf, sizeof(buf), "%.2f°C", temp);
+        snprintf(buf, sizeof(buf), "%.2f", temp);
         lv_label_set_text(tempLabels[i], buf);
 
         // Add temperature to chart
