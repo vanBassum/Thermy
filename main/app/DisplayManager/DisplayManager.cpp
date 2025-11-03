@@ -25,66 +25,42 @@ void DisplayManager::Init()
     task.SetHandler([this]() { Work(); });
     task.Run();
 
-// --- LVGL visual test ---
-lv_obj_clean(lv_scr_act());
+    // --- LVGL visual test ---
+    lv_obj_clean(lv_scr_act());
 
-// Black background for contrast
-lv_obj_set_style_bg_color(lv_scr_act(), lv_color_make(0, 0, 0), 0);
+    // Set screen background to solid black (prevents white AA edges)
+    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_COVER, LV_PART_MAIN);
 
-// === RED BOX ===
-lv_obj_t *red_box = lv_obj_create(lv_scr_act());
-lv_obj_set_size(red_box, 80, 80);
-lv_obj_set_style_bg_color(red_box, lv_color_make(255, 0, 0), 0);
-lv_obj_align(red_box, LV_ALIGN_TOP_LEFT, 10, 10);
+    // Box + label helper lambda
+    auto make_box = [](lv_color_t color, const char *text, int x, int y) {
+        lv_obj_t *box = lv_obj_create(lv_scr_act());
+        lv_obj_set_size(box, 100, 60);
+        lv_obj_set_pos(box, x, y);
+        lv_obj_set_style_bg_color(box, color, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(box, LV_OPA_COVER, LV_PART_MAIN);   // Fully opaque
+        lv_obj_set_style_border_width(box, 0, LV_PART_MAIN);        // No border AA
 
-lv_obj_t *red_label = lv_label_create(lv_scr_act());
-lv_label_set_text(red_label, "RED");
-lv_obj_set_style_text_color(red_label, lv_color_make(255, 255, 255), 0);
-lv_obj_align_to(red_label, red_box, LV_ALIGN_OUT_BOTTOM_MID, 0, 5);
+        lv_obj_t *label = lv_label_create(box);
+        lv_label_set_text(label, text);
+        lv_obj_center(label);
+    };
 
-// === GREEN BOX ===
-lv_obj_t *green_box = lv_obj_create(lv_scr_act());
-lv_obj_set_size(green_box, 80, 80);
-lv_obj_set_style_bg_color(green_box, lv_color_make(0, 255, 0), 0);
-lv_obj_align(green_box, LV_ALIGN_TOP_MID, 0, 10);
+    // Draw solid boxes for color verification
+    make_box(lv_color_hex(0xFF0000), "RED",   40, 40);
+    make_box(lv_color_hex(0x00FF00), "GREEN", 160, 40);
+    make_box(lv_color_hex(0x0000FF), "BLUE",  280, 40);
+    make_box(lv_color_hex(0xFFFF00), "YELLOW", 400, 40);
+    make_box(lv_color_hex(0xFFFFFF), "WHITE",  40, 120);
+    make_box(lv_color_hex(0x000000), "BLACK", 160, 120);
 
-lv_obj_t *green_label = lv_label_create(lv_scr_act());
-lv_label_set_text(green_label, "GREEN");
-lv_obj_set_style_text_color(green_label, lv_color_make(255, 255, 255), 0);
-lv_obj_align_to(green_label, green_box, LV_ALIGN_OUT_BOTTOM_MID, 0, 5);
+    // Text to verify rendering
+    lv_obj_t *label = lv_label_create(lv_scr_act());
+    lv_label_set_text(label, "LVGL WT32-SC01 Test");
+    lv_obj_align(label, LV_ALIGN_BOTTOM_MID, 0, -20);
 
-// === BLUE BOX ===
-lv_obj_t *blue_box = lv_obj_create(lv_scr_act());
-lv_obj_set_size(blue_box, 80, 80);
-lv_obj_set_style_bg_color(blue_box, lv_color_make(0, 0, 255), 0);
-lv_obj_align(blue_box, LV_ALIGN_TOP_RIGHT, -10, 10);
-
-lv_obj_t *blue_label = lv_label_create(lv_scr_act());
-lv_label_set_text(blue_label, "BLUE");
-lv_obj_set_style_text_color(blue_label, lv_color_make(255, 255, 255), 0);
-lv_obj_align_to(blue_label, blue_box, LV_ALIGN_OUT_BOTTOM_MID, 0, 5);
-
-// === GRADIENT TEST ===
-lv_obj_t *gradient = lv_obj_create(lv_scr_act());
-lv_obj_set_size(gradient, 200, 40);
-lv_obj_set_style_bg_color(gradient, lv_color_make(255, 0, 0), 0);
-lv_obj_set_style_bg_grad_color(gradient, lv_color_make(0, 0, 255), 0);
-lv_obj_set_style_bg_grad_dir(gradient, LV_GRAD_DIR_HOR, 0);
-lv_obj_align(gradient, LV_ALIGN_CENTER, 0, -30);
-
-lv_obj_t *grad_label = lv_label_create(lv_scr_act());
-lv_label_set_text(grad_label, "Gradient: Red → Blue");
-lv_obj_set_style_text_color(grad_label, lv_color_make(255, 255, 255), 0);
-lv_obj_align_to(grad_label, gradient, LV_ALIGN_OUT_BOTTOM_MID, 0, 5);
-
-// === WHITE LABEL CENTER ===
-lv_obj_t *hello = lv_label_create(lv_scr_act());
-lv_label_set_text(hello, "Hello LVGL!");
-lv_obj_set_style_text_color(hello, lv_color_make(255, 255, 255), 0);
-lv_obj_align(hello, LV_ALIGN_BOTTOM_MID, 0, -30);
-
-// Force immediate render
-lv_refr_now(NULL);
+    // Force immediate render
+    lv_refr_now(NULL);
 
 
 

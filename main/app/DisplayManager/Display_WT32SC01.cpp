@@ -36,35 +36,18 @@ void Display_WT32SC01::Init()
     // --- ST7796 config
     esp_lcd_panel_dev_config_t panel_cfg = {};
     panel_cfg.reset_gpio_num = LCD_RST;
-    panel_cfg.color_space = ESP_LCD_COLOR_SPACE_RGB;
+    panel_cfg.color_space = ESP_LCD_COLOR_SPACE_BGR;
     panel_cfg.bits_per_pixel = 16;
 
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7796(io, &panel_cfg, &panel));
     ESP_ERROR_CHECK(esp_lcd_panel_reset(panel));
     ESP_ERROR_CHECK(esp_lcd_panel_init(panel));
-
-    // Fix orientation
     ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel, true));
-    //ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel, true, false));
-
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel, true));
-
 
 
     // --- Backlight
     InitBacklight();
-
-    ESP_LOGI(TAG, "Filling screen red for test...");
-    static uint16_t red_buf[LCD_HRES * 10];
-    for (int i = 0; i < LCD_HRES * 10; i++) {
-        red_buf[i] = 0xF800;
-    }
-    for (int y = 0; y < LCD_VRES; y += 10) {
-        esp_lcd_panel_draw_bitmap(panel, 0, y, LCD_HRES, y + 10, red_buf);
-    }
-    ESP_LOGI(TAG, "Red fill complete");
-    vTaskDelay(pdMS_TO_TICKS(5000));
-
 
     // --- LVGL display setup ---
     size_t buf_pixels = LCD_HRES * 32;
