@@ -36,8 +36,8 @@ private:
 
     void Work();    
     void ScanBus();
-    void TriggerTemperatureConversions();
-    void ReadTemperatures();
+    bool TriggerTemperatureConversions();
+    bool ReadTemperatures();
 
     gpio_num_t one_wire_gpio = GPIO_NUM_4;
     onewire_bus_handle_t bus = nullptr;

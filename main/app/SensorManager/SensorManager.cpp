@@ -66,23 +66,25 @@ void SensorManager::Work()
 
     ScanBus();
     TriggerTemperatureConversions();
+    
 
     while(1)
     {
         TickType_t now = xTaskGetTickCount();
 
-        // Can we make a function for this, that does this, but also takes an argument to determine how long we need to sleep
-        if (IsElapsed(now, lastBusScan, BUS_SCAN_INTERVAL))
-        {
-            ScanBus();
-            lastBusScan = now;
-        }
+        bool success = true;
 
         if (IsElapsed(now, lastTemperatureRead, TEMPERATURE_READ_INTERVAL))
         {
-            ReadTemperatures();
-            TriggerTemperatureConversions();
+            success &= ReadTemperatures();
+            success &= TriggerTemperatureConversions();
             lastTemperatureRead = now;
+        }
+
+        if (IsElapsed(now, lastBusScan, BUS_SCAN_INTERVAL) || (!success))
+        {
+            ScanBus();
+            lastBusScan = now;
         }
 
         TickType_t busScanSleep = GetSleepTime(now, lastBusScan, BUS_SCAN_INTERVAL);
@@ -122,7 +124,7 @@ void SensorManager::ScanBus()
     //ESP_LOGI(TAG, "Found %d DS18B20 sensor(s)", sensorCount);
 }
 
-void SensorManager::TriggerTemperatureConversions()
+bool SensorManager::TriggerTemperatureConversions()
 {
     REQUIRE_READY(initGuard);
     LOCK(mutex);
@@ -130,14 +132,14 @@ void SensorManager::TriggerTemperatureConversions()
     esp_err_t err;
 
     if(sensorCount == 0)
-        return; // No sensors to trigger
+        return true; // No sensors to trigger
 
     // Reset the OneWire bus
     err = onewire_bus_reset(bus);
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "OneWire reset failed: %s", esp_err_to_name(err));
-        return;
+        return false;
     }
 
     // Broadcast "Skip ROM" command (0xCC) — all sensors will listen
@@ -145,7 +147,7 @@ void SensorManager::TriggerTemperatureConversions()
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Failed to send Skip ROM: %s", esp_err_to_name(err));
-        return;
+        return false;
     }
 
     // Send "Convert T" command (0x44) to start temperature conversion
@@ -153,25 +155,27 @@ void SensorManager::TriggerTemperatureConversions()
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG, "Failed to send Convert T command: %s", esp_err_to_name(err));
-        return;
+        return false;
     }
 
     // Done! The DS18B20 sensors now convert temperature asynchronously (~750 ms at 12-bit)
-    ESP_LOGD(TAG, "Triggered DS18B20 temperature conversion (non-blocking)");
+    return true;
 }
 
 
 
-void SensorManager::ReadTemperatures()
+bool SensorManager::ReadTemperatures()
 {
     REQUIRE_READY(initGuard);
     LOCK(mutex);
+    bool success = true;
 
     for (int index = 0; index < sensorCount; ++index)
     {
         esp_err_t err = ds18b20_get_temperature(sensors[index].handle, &sensors[index].temperatureC);
         if (err != ESP_OK)
         {
+            success = false;
             ESP_LOGE(TAG, "Failed to read DS18B20[%d]: %s", index, esp_err_to_name(err));
             continue;
         }
@@ -179,8 +183,10 @@ void SensorManager::ReadTemperatures()
         err = ds18b20_get_device_address(sensors[index].handle, &sensors[index].address);
         if (err != ESP_OK)
         {
+            success = false;
             ESP_LOGE(TAG, "Failed to read DS18B20[%d] address: %s", index, esp_err_to_name(err));
             continue;
         }
     }
+    return success;
 }

@@ -1,6 +1,9 @@
 # Thermy  
 Thermometer built around the WT32-SC01 module.
 
+Get the case here:
+https://www.thingiverse.com/thing:7191665
+
 ## 🔍 Overview  
 Although not all features are complete yet, the ones that are checked are already usable.
 
@@ -9,11 +12,11 @@ Although not all features are complete yet, the ones that are checked are alread
 - [x] Support for up to 4 DS18B20 sensors  
 - [x] WiFi connectivity  
 - [x] NTP sync  
+- [x] FTP server
+- [ ] Web server  
 - [ ] Upload to InfluxDB  
 - [ ] MQTT  
-- [ ] Web server  
-- [ ] FTP server
-- [ ] Changeable configuration
+- [ ] Changeable configuration (wifi, graph min max etc.)
 
 ### Notes
 - Currently supports **DS18B20** sensors only.  
