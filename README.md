@@ -1,53 +1,31 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-C61 | ESP32-H2 | ESP32-H21 | ESP32-H4 | ESP32-P4 | ESP32-S2 | ESP32-S3 | Linux |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | --------- | -------- | --------- | -------- | -------- | -------- | -------- | ----- |
+# Thermy  
+Thermometer built around the WT32-SC01 module.
 
-# Hello World Example
+## 🔍 Overview  
+Although not all features are complete yet, the ones that are checked are already usable.
 
-Starts a FreeRTOS task to print "Hello World".
+- [x] Local display showing real-time temperature readings  
+- [x] Visual history chart of temperature data (on-device)  
+- [x] Support for up to 4 DS18B20 sensors  
+- [x] WiFi connectivity  
+- [x] NTP sync  
+- [ ] Upload to InfluxDB  
+- [ ] MQTT  
+- [ ] Web server  
+- [ ] FTP server
+- [ ] Changeable configuration
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+### Notes
+- Currently supports **DS18B20** sensors only.  
+- Modular codebase — each subsystem (`DisplayManager`, `SensorManager`, `WifiManager`, etc.) runs in its own FreeRTOS task.  
+- Designed for stable operation with minimal work in `main()` (managers are self-contained).  
+- The **WebServer** will be reachable via **`thermy.local`** once implemented.  
+- The **FTP server** will allow uploading web interface files (see [Thermy-UI](https://github.com/vanBassum/Thermy-ui)), which will be served by the WebServer.  
+- Display shows current time (NTP-synced), WiFi IP, and sensor temperatures.  
+- The on-device chart shows temperature history for each connected sensor.
 
-## How to use example
-
-Follow detailed instructions provided specifically for this example.
-
-Select the instructions depending on Espressif chip installed on your development board:
-
-- [ESP32 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html)
-- [ESP32-S2 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s2/get-started/index.html)
-
-
-## Example folder contents
-
-The project **hello_world** contains one source file in C language [hello_world_main.c](main/hello_world_main.c). The file is located in folder [main](main).
-
-ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt` files that provide set of directives and instructions describing the project's source files and targets (executable, library, or both).
-
-Below is short explanation of remaining files in the project folder.
-
-```
-├── CMakeLists.txt
-├── pytest_hello_world.py      Python script used for automated testing
-├── main
-│   ├── CMakeLists.txt
-│   └── hello_world_main.c
-└── README.md                  This is the file you are currently reading
-```
-
-For more information on structure and contents of ESP-IDF projects, please refer to Section [Build System](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html) of the ESP-IDF Programming Guide.
-
-## Troubleshooting
-
-* Program upload failure
-
-    * Hardware connection is not correct: run `idf.py -p PORT monitor`, and reboot your board to see if there are any output logs.
-    * The baud rate for downloading is too high: lower your baud rate in the `menuconfig` menu, and try again.
-
-## Technical support and feedback
-
-Please use the following feedback channels:
-
-* For technical queries, go to the [esp32.com](https://esp32.com/) forum
-* For a feature request or bug report, create a [GitHub issue](https://github.com/espressif/esp-idf/issues)
-
-We will get back to you as soon as possible.
+## 📦 Hardware Requirements  
+- Built for **WT32-SC01**, though it can easily work on other ESP32 boards.  
+- Uses **DS18B20** temperature sensors connected to **GPIO 4**.  
+- Requires a compatible display (the WT32-SC01 integrated screen works out of the box).  
+- Optional SD card or FATFS partition for storing web files (used by FTP and WebServer features).  
