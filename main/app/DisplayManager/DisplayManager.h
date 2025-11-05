@@ -2,7 +2,6 @@
 #include "ServiceProvider.h"
 #include "rtos.h"
 #include "esp_log.h"
-#include "TickContext.h"
 #include "Display_WT32SC01.h"
 #include "lvgl.h"
 #include "WifiManager.h"
@@ -20,12 +19,14 @@ public:
 
 private:
     WifiManager &wifiManager;
+    SensorManager &sensorManager;
 
     InitGuard initGuard;
     Mutex mutex;
     Display_WT32SC01 display;
     Task task;
     Timer timer;
+    int chartCounter = 0;
 
     lv_obj_t *labelTime = nullptr;
     lv_obj_t *labelIP = nullptr;

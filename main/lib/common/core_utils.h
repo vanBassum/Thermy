@@ -26,3 +26,18 @@
  * --------------------------------------------- */
 #define COUNT_OF(arr)   (sizeof(arr) / sizeof((arr)[0]))
 #define ARRAY_END(arr)  ((arr) + COUNT_OF(arr))
+
+
+
+static bool IsElapsed(TickType_t now, TickType_t last, TickType_t interval)
+{
+    return (now - last) >= interval;
+}
+
+static TickType_t GetSleepTime(TickType_t now, TickType_t last, TickType_t interval)
+{
+    TickType_t diff = now - last;
+    if (diff >= interval)
+        return 0;
+    return interval - diff;
+}

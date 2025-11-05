@@ -2,7 +2,6 @@
 #include "esp_log.h"
 #include "FtpServer.h"
 #include "rtos.h"
-#include "TickContext.h"
 #include "ServiceProvider.h"
 
 
@@ -17,7 +16,7 @@ public:
     FtpManager(const FtpManager &) = delete;
     FtpManager &operator=(const FtpManager &) = delete;
 
-    void init()
+    void Init()
     {
         if(initGuard.IsReady())
             return;
@@ -30,8 +29,6 @@ public:
 
         initGuard.SetReady();
     }
-
-    void Tick(TickContext& ctx){}
 
 private:
     InitGuard initGuard;

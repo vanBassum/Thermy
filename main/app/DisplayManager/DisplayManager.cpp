@@ -1,9 +1,12 @@
 #include "DisplayManager.h"
 #include "DateTime.h"
 #include "core_utils.h"
+#include "WifiManager.h"
+#include "SensorManager.h"
 
 DisplayManager::DisplayManager(ServiceProvider &ctx)
     : wifiManager(ctx.GetWifiManager())
+    , sensorManager(ctx.GetSensorManager())
 {
 }
 
@@ -72,20 +75,20 @@ void DisplayManager::UiSetup()
     lv_obj_align(labelTime, LV_ALIGN_TOP_LEFT, 15, 8);
     lv_label_set_text(labelTime, "00:00:00");
     lv_obj_set_style_text_color(labelTime, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_text_font(labelTime, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_font(labelTime, &lv_font_montserrat_20, LV_PART_MAIN);
 
     labelIP = lv_label_create(lv_scr_act());
     lv_obj_align(labelIP, LV_ALIGN_TOP_RIGHT, -15, 8);
-    lv_label_set_text(labelIP, "192.168.0.123");
+    lv_label_set_text(labelIP, "No IP");
     lv_obj_set_style_text_color(labelIP, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_text_font(labelIP, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_font(labelIP, &lv_font_montserrat_20, LV_PART_MAIN);
 
     // --- Temperature section ---
     static const lv_coord_t startY = 40;
     static const lv_coord_t startX = 10;
     static const lv_coord_t spacing = 15;
     static const lv_coord_t boxW = 100;
-    static const lv_coord_t boxH = 50;
+    static const lv_coord_t boxH = 55;
 
     // Define matching colors for each channel
     static const lv_color_t channelColors[4] = {
@@ -114,7 +117,7 @@ void DisplayManager::UiSetup()
 
         // Temperature label
         lv_obj_t *label = lv_label_create(box);
-        lv_label_set_text(label, "00.00");
+        lv_label_set_text(label, "--.--");
         lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_text_color(label, channelColors[i], LV_PART_MAIN); // text matches chart
         lv_obj_set_style_text_font(label, &lv_font_montserrat_28, LV_PART_MAIN);
@@ -137,11 +140,14 @@ void DisplayManager::UiSetup()
     // Line chart without points
     lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
     lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
-    lv_chart_set_point_count(chart, 30);
+    lv_chart_set_point_count(chart, 120);
     lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 0, 100);
 
     // Hide dots, show only lines
     lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR); // remove point markers
+
+    lv_chart_set_div_line_count(chart, 5, 5);
+
 
     // --- Enable Y-axis ticks and labels ---
     // lv_chart_set_axis_tick(chart, LV_CHART_AXIS_PRIMARY_Y, 10, 5, 5, 2, true, 50);
@@ -166,26 +172,44 @@ void DisplayManager::UiUpdate()
     DateTime now = DateTime::Now();
     char buf[32];
 
-    // day-month hh mm ss
-    now.ToStringLocal(buf, sizeof(buf), "%d-%m %H:%M:%S");
+    // %d-%m-%Y %H:%M:%S
+    now.ToStringLocal(buf, sizeof(buf), "%H:%M:%S");
     lv_label_set_text(labelTime, buf);
 
-    // Dummy IP placeholder (replace with actual later)
     if (!wifiManager.GetIp(buf, sizeof(buf)))
         snprintf(buf, sizeof(buf), "No IP");
     lv_label_set_text(labelIP, buf);
 
+    int sensorCount = sensorManager.GetSensorCount();
+
+    chartCounter++;
+    if(chartCounter > 60)
+        chartCounter = 0;
+    
+
     // Update dummy temperatures
     for (int i = 0; i < 4; i++)
     {
-        float temp = 20.0f + (rand() % 100) / 10.0f; // 20.0–29.9°C
-        snprintf(buf, sizeof(buf), "%.2f", temp);
-        lv_label_set_text(tempLabels[i], buf);
+        if(i < sensorCount)
+        {
+            // Real sensor
+            float temp = sensorManager.GetTemperature(i);
+            snprintf(buf, sizeof(buf), "%.2f", temp);
 
-        // Add temperature to chart
-        lv_chart_set_next_value(chart, chartSeries[i], (lv_coord_t)temp);
+            lv_label_set_text(tempLabels[i], buf);
+
+            if(chartCounter == 0) 
+                lv_chart_set_next_value(chart, chartSeries[i], (lv_coord_t)temp);
+            
+            continue;
+        }
+        else
+        {
+            // No sensor, show dummy data
+            lv_label_set_text(tempLabels[i], "--.--");
+        }
+
     }
-
     // Refresh chart to reflect new data
     lv_chart_refresh(chart);
 }

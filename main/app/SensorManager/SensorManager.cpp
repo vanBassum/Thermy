@@ -1,9 +1,9 @@
 #include "SensorManager.h"
 #include "esp_check.h"
 #include "Mutex.h"
+#include "core_utils.h"
 
 SensorManager::SensorManager(ServiceProvider &ctx)
-    : settingsManager(ctx.GetSettingsManager())
 {
 }
 
@@ -13,11 +13,6 @@ void SensorManager::Init()
         return;
 
     LOCK(mutex);
-
-    settingsManager.Access([&](RootSettings &settings)
-    {
-        one_wire_gpio = static_cast<gpio_num_t>(settings.system.oneWireGpio);
-    });
 
 
     ESP_LOGI(TAG, "Initializing OneWire bus on GPIO%d", one_wire_gpio);
@@ -32,34 +27,11 @@ void SensorManager::Init()
 
     ESP_ERROR_CHECK(onewire_new_bus_rmt(&bus_cfg, &rmt_cfg, &bus));
 
+    task.Init("SensorManager", 6, 4096);
+    task.SetHandler([this](){ Work(); });
+    task.Run();
+
     initGuard.SetReady();
-    ScanBus();
-    TriggerTemperatureConversions();
-    lastTemperatureRead = NowMs();      // This ensures enough time for the first conversion
-    lastBusScan = NowMs();
-}
-
-void SensorManager::Tick(TickContext &ctx)
-{
-    REQUIRE_READY(initGuard);
-    LOCK(mutex);
-
-    if(ctx.HasElapsed(lastTemperatureRead, TEMPERATURE_READ_INTERVAL))
-    {
-        ReadTemperatures();
-    }
-
-    if (ctx.HasElapsed(lastBusScan, BUS_SCAN_INTERVAL))
-    {
-        ScanBus();
-        ctx.MarkExecuted(lastBusScan, BUS_SCAN_INTERVAL);
-    }
-
-    if (ctx.HasElapsed(lastTemperatureRead, TEMPERATURE_READ_INTERVAL))
-    {
-        TriggerTemperatureConversions();
-        ctx.MarkExecuted(lastTemperatureRead, TEMPERATURE_READ_INTERVAL);
-    }
 }
 
 float SensorManager::GetTemperature(int index)
@@ -85,6 +57,39 @@ int SensorManager::GetSensorCount()
     REQUIRE_READY(initGuard);
     LOCK(mutex);
     return sensorCount;
+}
+
+void SensorManager::Work()
+{
+    TickType_t lastBusScan = 0;
+    TickType_t lastTemperatureRead = 0;
+
+    ScanBus();
+    TriggerTemperatureConversions();
+
+    while(1)
+    {
+        TickType_t now = xTaskGetTickCount();
+
+        // Can we make a function for this, that does this, but also takes an argument to determine how long we need to sleep
+        if (IsElapsed(now, lastBusScan, BUS_SCAN_INTERVAL))
+        {
+            ScanBus();
+            lastBusScan = now;
+        }
+
+        if (IsElapsed(now, lastTemperatureRead, TEMPERATURE_READ_INTERVAL))
+        {
+            ReadTemperatures();
+            TriggerTemperatureConversions();
+            lastTemperatureRead = now;
+        }
+
+        TickType_t busScanSleep = GetSleepTime(now, lastBusScan, BUS_SCAN_INTERVAL);
+        TickType_t tempReadSleep = GetSleepTime(now, lastTemperatureRead, TEMPERATURE_READ_INTERVAL);
+        TickType_t sleepTime = MIN(busScanSleep, tempReadSleep);
+        vTaskDelay(sleepTime);
+    }
 }
 
 void SensorManager::ScanBus()
@@ -159,6 +164,9 @@ void SensorManager::TriggerTemperatureConversions()
 
 void SensorManager::ReadTemperatures()
 {
+    REQUIRE_READY(initGuard);
+    LOCK(mutex);
+
     for (int index = 0; index < sensorCount; ++index)
     {
         esp_err_t err = ds18b20_get_temperature(sensors[index].handle, &sensors[index].temperatureC);

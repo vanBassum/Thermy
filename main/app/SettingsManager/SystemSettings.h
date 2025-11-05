@@ -22,8 +22,6 @@ struct SystemSettings : public ISettingsGroup
 
     char timezone[64];
 
-    uint32_t oneWireGpio;
-
     static const SettingsDescriptor SCHEMA[];
 
     const SettingsDescriptor *GetSettingsSchema() const override;
@@ -41,7 +39,6 @@ inline const SettingsDescriptor SystemSettings::SCHEMA[] = {
     DESCRIPTOR_FIELD("influx_key",  influxApiKey,       INFLUX_API_KEY),
     DESCRIPTOR_FIELD("influx_org",  influxOrganisation, INFLUX_ORGANISATION),
     DESCRIPTOR_FIELD("influx_bkt",  influxBucket,       INFLUX_BUCKET),
-    DESCRIPTOR_FIELD("onewire_gpio", oneWireGpio,       2),
     DESCRIPTOR_FIELD("timezone",    timezone,           DEFAULT_TIMEZONE),
 
 };

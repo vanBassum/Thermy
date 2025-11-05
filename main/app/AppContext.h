@@ -1,84 +1,50 @@
 #pragma once
 #include <cassert>
+#include "DisplayManager.h"
+#include "FtpManager.h"
+#include "SensorManager.h"
 #include "ServiceProvider.h"
 #include "SettingsManager.h"
-#include "DisplayManager.h"
-#include "WifiManager.h"
-#include "SensorManager.h"
-#include "TimeManager.h"
-#include "InfluxManager.h"
-#include "DataManager.h"
-#include "TickContext.h"
-#include "WebManager.h"
-#include "FtpManager.h"
-#include "WebUpdateManager.h"
 #include "SimpleStats.h"
-#include "HardwareManager.h"
+#include "TimeManager.h"
+#include "WebManager.h"
 
 class AppContext : public ServiceProvider
 {
     constexpr static const char *TAG = "AppContext";
+
 public:
-    AppContext(SimpleStats* stats, int cnt)
-        : g_stats(stats), num_stats(cnt)
-    {
-        assert(stats != nullptr);
-        assert(cnt > 0);
-    }
+    AppContext() = default;
     ~AppContext() = default;
 
     AppContext(const AppContext &) = delete;
     AppContext &operator=(const AppContext &) = delete;
 
-    HardwareManager &GetHardwareManager() override { return hardwareManager; }
-    SensorManager &GetSensorManager() override { return sensorManager; }
-    DisplayManager &GetDisplayManager() override { return displayManager; }
-    WifiManager &GetWifiManager() override { return wifiManager; }
-    DataManager &GetDataManager() override { return dataManager; }
-    InfluxManager &GetInfluxManager() override { return influxManager; }
-    TimeManager &GetTimeManager() override { return timeManager; }
-    SettingsManager &GetSettingsManager() override { return settingsManager; }
-    WebManager &GetWebManager() override { return webManager; }
-    FtpManager &GetFtpManager() override { return ftpManager; }
-    WebUpdateManager &GetWebUpdateManager() override { return webUpdateManager; }
+    virtual DisplayManager &GetDisplayManager() override { return displayManager; }
+    virtual FtpManager &GetFtpManager() override { return ftpManager; }
+    virtual SensorManager &GetSensorManager() override { return sensorManager; }
+    virtual SettingsManager &GetSettingsManager() override { return settingsManager; }
+    virtual TimeManager &GetTimeManager() override { return timeManager; }
+    virtual WebManager &GetWebManager() override { return webManager; }
+    virtual WifiManager &GetWifiManager() override { return wifiManager; }
 
     void Init()
     {
-        hardwareManager.Init();
         GetSettingsManager().Init();
         GetDisplayManager().Init();
         GetWifiManager().Init();
-        GetDataManager().Init();
-        GetTimeManager().Init();
         GetSensorManager().Init();
-        GetInfluxManager().Init();
+        GetTimeManager().Init();
         GetWebManager().Init();
-        GetFtpManager().init();
-        GetWebUpdateManager().Init();
-
-        
+        GetFtpManager().Init();
     }
 
-    SimpleStats* GetStats() override { return g_stats; }
-    int GetStatsCount() override { return num_stats; }
-
 private:
-    HardwareManager hardwareManager{*this};
-    SensorManager sensorManager{*this};
     DisplayManager displayManager{*this};
-    WifiManager wifiManager{*this};
-    DataManager dataManager{*this};
-    InfluxManager influxManager{*this};
-    TimeManager timeManager{*this};
-    SettingsManager settingsManager{*this};
-    WebManager webManager{*this};
     FtpManager ftpManager{*this};
-    WebUpdateManager webUpdateManager{*this};
-
-    SimpleStats* g_stats;
-    int num_stats;
-
+    SensorManager sensorManager{*this};
+    SettingsManager settingsManager{*this};
+    TimeManager timeManager{*this};
+    WebManager webManager{*this};
+    WifiManager wifiManager{*this};
 };
-
-
-

@@ -3,7 +3,6 @@
 #include "InitGuard.h"
 #include "RecursiveMutex.h"
 #include "DateTime.h"
-#include "TickContext.h"
 #include "SettingsManager.h"
 
 class TimeManager
@@ -15,7 +14,6 @@ public:
     ~TimeManager();
 
     void Init();
-    void Tick(TickContext& ctx) {}
     bool IsTimeValid() const;
 
     // Accessors
