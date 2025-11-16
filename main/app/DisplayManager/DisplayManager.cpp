@@ -126,7 +126,6 @@ void DisplayManager::UiSetup()
         tempLabels[i] = label;
     }
 
-
     // --- Temperature history chart ---
     const lv_coord_t chartX = startX + boxW + 20;
     const lv_coord_t chartY = startY;
@@ -148,10 +147,6 @@ void DisplayManager::UiSetup()
 
     lv_chart_set_div_line_count(chart, 5, 5);
 
-
-    // --- Enable Y-axis ticks and labels ---
-    // lv_chart_set_axis_tick(chart, LV_CHART_AXIS_PRIMARY_Y, 10, 5, 5, 2, true, 50);
-
     // Chart appearance
     lv_obj_set_style_bg_color(chart, lv_color_hex(0x101010), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(chart, LV_OPA_COVER, LV_PART_MAIN);
@@ -160,10 +155,10 @@ void DisplayManager::UiSetup()
     lv_obj_set_style_radius(chart, 8, LV_PART_MAIN);
 
     // Create one series per temperature channel
-    chartSeries[0] = lv_chart_add_series(chart, channelColors[0] , LV_CHART_AXIS_PRIMARY_Y);
-    chartSeries[1] = lv_chart_add_series(chart, channelColors[1] , LV_CHART_AXIS_PRIMARY_Y);
-    chartSeries[2] = lv_chart_add_series(chart, channelColors[2] , LV_CHART_AXIS_PRIMARY_Y);
-    chartSeries[3] = lv_chart_add_series(chart, channelColors[3] , LV_CHART_AXIS_PRIMARY_Y);
+    chartSeries[0] = lv_chart_add_series(chart, channelColors[0], LV_CHART_AXIS_PRIMARY_Y);
+    chartSeries[1] = lv_chart_add_series(chart, channelColors[1], LV_CHART_AXIS_PRIMARY_Y);
+    chartSeries[2] = lv_chart_add_series(chart, channelColors[2], LV_CHART_AXIS_PRIMARY_Y);
+    chartSeries[3] = lv_chart_add_series(chart, channelColors[3], LV_CHART_AXIS_PRIMARY_Y);
 }
 
 void DisplayManager::UiUpdate()
@@ -183,14 +178,13 @@ void DisplayManager::UiUpdate()
     int sensorCount = sensorManager.GetSensorCount();
 
     chartCounter++;
-    if(chartCounter > 60)
+    if (chartCounter > 60)
         chartCounter = 0;
-    
 
     // Update dummy temperatures
     for (int i = 0; i < 4; i++)
     {
-        if(i < sensorCount)
+        if (i < sensorCount)
         {
             // Real sensor
             float temp = sensorManager.GetTemperature(i);
@@ -198,9 +192,9 @@ void DisplayManager::UiUpdate()
 
             lv_label_set_text(tempLabels[i], buf);
 
-            if(chartCounter == 0) 
+            if (chartCounter == 0)
                 lv_chart_set_next_value(chart, chartSeries[i], (lv_coord_t)temp);
-            
+
             continue;
         }
         else
@@ -208,8 +202,8 @@ void DisplayManager::UiUpdate()
             // No sensor, show dummy data
             lv_label_set_text(tempLabels[i], "--.--");
         }
-
     }
+
     // Refresh chart to reflect new data
     lv_chart_refresh(chart);
 }
