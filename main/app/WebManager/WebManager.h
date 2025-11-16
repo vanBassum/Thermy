@@ -4,6 +4,7 @@
 #include "DateTime.h"
 #include "HttpWebServer.h"
 #include "FileGetEndpoint.h"
+#include "GetTemperaturesEndpoint.h"
 
 class WebManager
 {
@@ -20,7 +21,7 @@ public:
     {
         server.start();
         //server.registerEndpoint("/test", HTTP_GET, testEndpoint);
-        //server.registerEndpoint("/api/temperatures", HTTP_GET, getTemperaturesEndpoint);
+        server.registerEndpoint("/api/temperatures", HTTP_GET, getTemperaturesEndpoint);
         //server.registerEndpoint("/api/stats", HTTP_GET, getStatsEndpoint);
 
         server.registerEndpoint("/*", HTTP_GET, fileGetEndpoint);
@@ -35,4 +36,5 @@ private:
 
     HttpWebServer server;
     FileGetEndpoint fileGetEndpoint{"/fat"};
+    GetTemperaturesEndpoint getTemperaturesEndpoint{ctx};
 };
