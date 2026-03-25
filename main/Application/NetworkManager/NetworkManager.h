@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <stdint.h>
 
 #include "WiFiInterface.h"
@@ -39,8 +40,8 @@ private:
     // STA connection state
     char staSsid_[33] = {};
     char staPassword_[65] = {};
-    int staRetryCount_ = 0;
-    bool staConnected_ = false;
+    std::atomic<int> staRetryCount_{0};
+    std::atomic<bool> staConnected_{false};
 
     Timer connectTimer_;
 
