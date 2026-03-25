@@ -12,6 +12,7 @@ set(SOURCE_FILES_LIST
     "Application/SettingsManager/SettingsManager.cpp"
     "Application/LogManager/LogManager.cpp"
     "Application/DisplayManager/DisplayManager.cpp"
+    "Application/DisplayManager/DisplaySettings.cpp"
     "hardware/display/Display_WT32SC01.cpp"
     "Application/SensorManager/SensorManager.cpp"
     "Application/TemperatureHistory/TemperatureHistory.cpp"

@@ -17,6 +17,7 @@ DisplayManager::DisplayManager(ServiceProvider &ctx)
     : networkManager(ctx.getNetworkManager())
     , sensorManager(ctx.getSensorManager())
     , settingsManager(ctx.getSettingsManager())
+    , displaySettings(ctx.getSettingsManager(), ctx.getSensorManager(), ctx.getNetworkManager())
 {
 }
 
@@ -31,16 +32,12 @@ void DisplayManager::Init()
     lv_init();
     display.Init();
 
-    // --- LVGL tick (5ms)
     timer.Init("LvglTickTimer", pdMS_TO_TICKS(5), true);
-    timer.SetHandler([this]()
-                     { LvglTickCb(this); });
+    timer.SetHandler([this]() { LvglTickCb(this); });
     timer.Start();
 
-    // --- Start LVGL task ---
     task.Init("DisplayTask", 5, 4096);
-    task.SetHandler([this]()
-                    { Work(); });
+    task.SetHandler([this]() { Work(); });
     task.Run();
 
     init.SetReady();
@@ -83,7 +80,7 @@ void DisplayManager::UiSetup()
     lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_clear_flag(lv_scr_act(), LV_OBJ_FLAG_SCROLLABLE);
 
-    // ── Top bar: time + IP ──
+    // ── Top bar ──
     labelTime = lv_label_create(lv_scr_act());
     lv_obj_set_pos(labelTime, 10, 6);
     lv_label_set_text(labelTime, "00:00:00");
@@ -131,12 +128,12 @@ void DisplayManager::UiSetup()
     static constexpr lv_coord_t chartY = slotY + slotH + 6;
     lv_coord_t chartH = LCD_VRES - chartY - 6;
 
+    int32_t graphMin = settingsManager.getInt("graph.min", 0);
+    int32_t graphMax = settingsManager.getInt("graph.max", 100);
+
     chart = lv_chart_create(lv_scr_act());
     lv_obj_set_size(chart, LCD_HRES - 2 * slotMargin, chartH);
     lv_obj_set_pos(chart, slotMargin, chartY);
-
-    int32_t graphMin = settingsManager.getInt("graph.min", 0);
-    int32_t graphMax = settingsManager.getInt("graph.max", 100);
 
     lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
     lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
@@ -155,8 +152,6 @@ void DisplayManager::UiSetup()
     lv_obj_set_style_pad_top(chart, 4, LV_PART_MAIN);
     lv_obj_set_style_pad_bottom(chart, 4, LV_PART_MAIN);
     lv_obj_clear_flag(chart, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
-
-    // Subtle grid lines
     lv_obj_set_style_line_color(chart, lv_color_hex(0x222222), LV_PART_MAIN);
 
     // Y-axis labels
@@ -171,7 +166,6 @@ void DisplayManager::UiSetup()
         lv_label_set_text(lbl, labelBuf);
         lv_obj_set_style_text_color(lbl, lv_color_hex(0x666666), LV_PART_MAIN);
         lv_obj_set_style_text_font(lbl, &lv_font_montserrat_10, LV_PART_MAIN);
-        // Position along left edge, distributed vertically
         lv_coord_t yPos = (lv_coord_t)(i * (chartH - 8) / 5);
         lv_obj_set_pos(lbl, 2, yPos);
     }
@@ -199,18 +193,15 @@ void DisplayManager::UiSetup()
 
 void DisplayManager::UiUpdate()
 {
-    // Don't update main UI while settings or popup is open
-    if (settingsPanel)
+    if (displaySettings.IsOpen())
         return;
 
     char buf[32];
 
-    // Update time
     DateTime now = DateTime::Now();
     now.ToStringLocal(buf, sizeof(buf), "%H:%M:%S");
     lv_label_set_text(labelTime, buf);
 
-    // Update IP
     auto status = networkManager.wifi().getStatus();
     if (status.has_ipv4)
         snprintf(buf, sizeof(buf), IPSTR, IP2STR(&status.ipv4.ip));
@@ -218,12 +209,10 @@ void DisplayManager::UiUpdate()
         snprintf(buf, sizeof(buf), "No IP");
     lv_label_set_text(labelIP, buf);
 
-    // Update chart counter
     chartCounter++;
     if (chartCounter > 60)
         chartCounter = 0;
 
-    // Update temperature slots
     for (int i = 0; i < 4; i++)
     {
         if (sensorManager.IsSlotActive(i))
@@ -243,18 +232,11 @@ void DisplayManager::UiUpdate()
 
     lv_chart_refresh(chart);
 
-    // Check for pending sensors (only when no popup is showing)
     if (!assignPopup && sensorManager.HasPendingSensor())
-    {
         ShowAssignPopup(sensorManager.GetPendingSensorAddress());
-    }
 
-    // Auto-assign timeout
     if (assignPopup && (xTaskGetTickCount() - popupShownAt > POPUP_TIMEOUT))
-    {
-        ESP_LOGD(TAG, "Popup timeout, auto-assigning");
         AutoAssignToFirstEmpty();
-    }
 }
 
 // ── Assignment popup ─────────────────────────────────────────
@@ -267,7 +249,6 @@ void DisplayManager::ShowAssignPopup(uint64_t address)
     popupSensorAddress = address;
     popupShownAt = xTaskGetTickCount();
 
-    // Dark overlay
     assignPopup = lv_obj_create(lv_scr_act());
     lv_obj_set_size(assignPopup, LCD_HRES, LCD_VRES);
     lv_obj_set_pos(assignPopup, 0, 0);
@@ -308,7 +289,6 @@ void DisplayManager::ShowAssignPopup(uint64_t address)
         lv_obj_t *btn = lv_btn_create(assignPopup);
         lv_obj_set_size(btn, btnW, btnH);
         lv_obj_set_pos(btn, startX + i * (btnW + btnGap), btnY);
-
         lv_obj_set_style_bg_color(btn, channelColors[i], LV_PART_MAIN);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
         lv_obj_set_style_radius(btn, 10, LV_PART_MAIN);
@@ -347,7 +327,6 @@ void DisplayManager::OnSlotSelected(int slot)
 {
     if (slot < 0 || slot >= 4)
         return;
-
     sensorManager.AssignPendingToSlot(slot);
     CloseAssignPopup();
 }
@@ -362,7 +341,6 @@ void DisplayManager::AutoAssignToFirstEmpty()
             return;
         }
     }
-
     sensorManager.DismissPendingSensor();
     CloseAssignPopup();
 }
@@ -373,183 +351,11 @@ void DisplayManager::PopupEventCb(lv_event_t *e)
     lv_obj_t *btn = lv_event_get_target(e);
     auto *self = static_cast<DisplayManager *>(lv_obj_get_user_data(btn));
     if (self && slot >= 0 && slot < 4)
-    {
         self->OnSlotSelected(slot);
-    }
-}
-
-// ── Settings screen ──────────────────────────────────────────
-
-void DisplayManager::ShowSettings()
-{
-    if (settingsPanel)
-        return;
-
-    CloseAssignPopup();
-
-    settingsPanel = lv_obj_create(lv_scr_act());
-    lv_obj_set_size(settingsPanel, LCD_HRES, LCD_VRES);
-    lv_obj_set_pos(settingsPanel, 0, 0);
-    lv_obj_set_style_bg_color(settingsPanel, lv_color_hex(0x101010), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(settingsPanel, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_border_width(settingsPanel, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(settingsPanel, 0, LV_PART_MAIN);
-    lv_obj_clear_flag(settingsPanel, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Back button
-    lv_obj_t *backBtn = lv_btn_create(settingsPanel);
-    lv_obj_set_size(backBtn, 70, 36);
-    lv_obj_set_pos(backBtn, 10, 8);
-    lv_obj_set_style_bg_color(backBtn, lv_color_hex(0x303030), LV_PART_MAIN);
-    lv_obj_set_style_shadow_width(backBtn, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(backBtn, 6, LV_PART_MAIN);
-
-    lv_obj_t *backLabel = lv_label_create(backBtn);
-    lv_label_set_text(backLabel, LV_SYMBOL_LEFT " Back");
-    lv_obj_set_style_text_color(backLabel, lv_color_white(), LV_PART_MAIN);
-    lv_obj_center(backLabel);
-    lv_obj_add_event_cb(backBtn, BackBtnCb, LV_EVENT_CLICKED, this);
-
-    // Title
-    lv_obj_t *title = lv_label_create(settingsPanel);
-    lv_label_set_text(title, LV_SYMBOL_SETTINGS " Settings");
-    lv_obj_set_style_text_color(title, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, LV_PART_MAIN);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 12);
-
-    // WiFi SSID
-    lv_obj_t *ssidLabel = lv_label_create(settingsPanel);
-    lv_label_set_text(ssidLabel, LV_SYMBOL_WIFI " SSID");
-    lv_obj_set_style_text_color(ssidLabel, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_pos(ssidLabel, 15, 55);
-
-    ssidTextarea = lv_textarea_create(settingsPanel);
-    lv_obj_set_size(ssidTextarea, 300, 36);
-    lv_obj_set_pos(ssidTextarea, 120, 50);
-    lv_textarea_set_one_line(ssidTextarea, true);
-    lv_textarea_set_max_length(ssidTextarea, 32);
-    lv_obj_set_style_bg_color(ssidTextarea, lv_color_hex(0x252525), LV_PART_MAIN);
-    lv_obj_set_style_text_color(ssidTextarea, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_border_color(ssidTextarea, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
-
-    char ssidBuf[33] = {};
-    settingsManager.getString("wifi.ssid", ssidBuf, sizeof(ssidBuf));
-    lv_textarea_set_text(ssidTextarea, ssidBuf);
-    lv_obj_add_event_cb(ssidTextarea, TextareaFocusCb, LV_EVENT_FOCUSED, this);
-
-    // WiFi Password
-    lv_obj_t *passLabel = lv_label_create(settingsPanel);
-    lv_label_set_text(passLabel, LV_SYMBOL_EYE_CLOSE " Pass");
-    lv_obj_set_style_text_color(passLabel, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_pos(passLabel, 15, 97);
-
-    passwordTextarea = lv_textarea_create(settingsPanel);
-    lv_obj_set_size(passwordTextarea, 300, 36);
-    lv_obj_set_pos(passwordTextarea, 120, 92);
-    lv_textarea_set_one_line(passwordTextarea, true);
-    lv_textarea_set_max_length(passwordTextarea, 64);
-    lv_textarea_set_password_mode(passwordTextarea, true);
-    lv_obj_set_style_bg_color(passwordTextarea, lv_color_hex(0x252525), LV_PART_MAIN);
-    lv_obj_set_style_text_color(passwordTextarea, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_border_color(passwordTextarea, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
-
-    char passBuf[65] = {};
-    settingsManager.getString("wifi.password", passBuf, sizeof(passBuf));
-    lv_textarea_set_text(passwordTextarea, passBuf);
-    lv_obj_add_event_cb(passwordTextarea, TextareaFocusCb, LV_EVENT_FOCUSED, this);
-
-    // Buttons
-    lv_obj_t *clearBtn = lv_btn_create(settingsPanel);
-    lv_obj_set_size(clearBtn, 160, 40);
-    lv_obj_align(clearBtn, LV_ALIGN_TOP_LEFT, 15, 140);
-    lv_obj_set_style_bg_color(clearBtn, lv_palette_main(LV_PALETTE_DEEP_ORANGE), LV_PART_MAIN);
-    lv_obj_set_style_shadow_width(clearBtn, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(clearBtn, 6, LV_PART_MAIN);
-
-    lv_obj_t *clearLabel = lv_label_create(clearBtn);
-    lv_label_set_text(clearLabel, LV_SYMBOL_TRASH " Clear Sensors");
-    lv_obj_set_style_text_color(clearLabel, lv_color_white(), LV_PART_MAIN);
-    lv_obj_center(clearLabel);
-    lv_obj_add_event_cb(clearBtn, ClearSensorsBtnCb, LV_EVENT_CLICKED, this);
-
-    lv_obj_t *saveBtn = lv_btn_create(settingsPanel);
-    lv_obj_set_size(saveBtn, 160, 40);
-    lv_obj_align(saveBtn, LV_ALIGN_TOP_RIGHT, -15, 140);
-    lv_obj_set_style_bg_color(saveBtn, lv_palette_main(LV_PALETTE_BLUE), LV_PART_MAIN);
-    lv_obj_set_style_shadow_width(saveBtn, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(saveBtn, 6, LV_PART_MAIN);
-
-    lv_obj_t *saveLabel = lv_label_create(saveBtn);
-    lv_label_set_text(saveLabel, LV_SYMBOL_OK " Save & Reboot");
-    lv_obj_set_style_text_color(saveLabel, lv_color_white(), LV_PART_MAIN);
-    lv_obj_center(saveLabel);
-    lv_obj_add_event_cb(saveBtn, SaveRebootBtnCb, LV_EVENT_CLICKED, this);
-
-    // Keyboard (hidden until textarea focused)
-    keyboard = lv_keyboard_create(settingsPanel);
-    lv_obj_set_size(keyboard, LCD_HRES, 130);
-    lv_obj_align(keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x1a1a1a), LV_PART_MAIN);
-    lv_obj_set_style_text_color(keyboard, lv_color_white(), LV_PART_ITEMS);
-    lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x333333), LV_PART_ITEMS);
-    lv_obj_add_flag(keyboard, LV_OBJ_FLAG_HIDDEN);
-}
-
-void DisplayManager::CloseSettings()
-{
-    if (settingsPanel)
-    {
-        keyboard = nullptr;
-        ssidTextarea = nullptr;
-        passwordTextarea = nullptr;
-        lv_obj_del(settingsPanel);
-        settingsPanel = nullptr;
-    }
 }
 
 void DisplayManager::GearBtnCb(lv_event_t *e)
 {
     auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
-    self->ShowSettings();
-}
-
-void DisplayManager::BackBtnCb(lv_event_t *e)
-{
-    auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
-    self->CloseSettings();
-}
-
-void DisplayManager::SaveRebootBtnCb(lv_event_t *e)
-{
-    auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
-
-    const char *ssid = lv_textarea_get_text(self->ssidTextarea);
-    const char *pass = lv_textarea_get_text(self->passwordTextarea);
-
-    self->settingsManager.setString("wifi.ssid", ssid);
-    self->settingsManager.setString("wifi.password", pass);
-    self->settingsManager.Save();
-
-    ESP_LOGI(TAG, "WiFi settings saved, rebooting...");
-    vTaskDelay(pdMS_TO_TICKS(500));
-    esp_restart();
-}
-
-void DisplayManager::ClearSensorsBtnCb(lv_event_t *e)
-{
-    auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
-    self->sensorManager.ClearAllSlots();
-    self->CloseSettings();
-}
-
-void DisplayManager::TextareaFocusCb(lv_event_t *e)
-{
-    auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
-    lv_obj_t *ta = lv_event_get_target(e);
-
-    if (self->keyboard)
-    {
-        lv_keyboard_set_textarea(self->keyboard, ta);
-        lv_obj_clear_flag(self->keyboard, LV_OBJ_FLAG_HIDDEN);
-    }
+    self->displaySettings.Show(lv_scr_act());
 }
