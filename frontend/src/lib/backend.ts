@@ -205,6 +205,10 @@ class BackendService {
     return this.send<TemperaturesResponse>("getTemperatures")
   }
 
+  async getHistory(count = 360): Promise<HistoryResponse> {
+    return this.send<HistoryResponse>("getHistory", { count })
+  }
+
   async uploadFirmware(
     file: File,
     onProgress?: (percent: number) => void,
@@ -316,5 +320,19 @@ export interface SensorReading {
 
 export interface TemperaturesResponse {
   sensors: SensorReading[]
+}
+
+export interface HistorySample {
+  t: number
+  s0: number | null
+  s1: number | null
+  s2: number | null
+  s3: number | null
+}
+
+export interface HistoryResponse {
+  maxSamples: number
+  count: number
+  samples: HistorySample[]
 }
 

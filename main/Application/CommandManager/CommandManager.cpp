@@ -10,6 +10,7 @@
 #include "esp_heap_caps.h"
 #include "NetworkManager.h"
 #include "SensorManager.h"
+#include "TemperatureHistory.h"
 #include <cstring>
 
 const CommandManager::CommandEntry CommandManager::commands_[] = {
@@ -23,6 +24,7 @@ const CommandManager::CommandEntry CommandManager::commands_[] = {
     { "wifiScan",      &CommandManager::Cmd_WifiScan },
     { "getLogs",       &CommandManager::Cmd_GetLogs },
     { "getTemperatures", &CommandManager::Cmd_GetTemperatures },
+    { "getHistory",      &CommandManager::Cmd_GetHistory },
     { nullptr, nullptr },
 };
 
@@ -200,6 +202,41 @@ void CommandManager::Cmd_GetTemperatures(const char* json, JsonWriter& resp)
         resp.field("address", addrBuf);
 
         resp.field("temperature", sensors.IsSlotActive(i) ? sensors.GetTemperature(i) : 0.0f);
+        resp.endObject();
+    }
+    resp.endArray();
+}
+
+void CommandManager::Cmd_GetHistory(const char* json, JsonWriter& resp)
+{
+    auto& history = serviceProvider_.getTemperatureHistory();
+
+    int32_t count = 360;
+    ExtractJsonInt(json, "count", count);
+    if (count < 1) count = 1;
+    if (count > (int32_t)TemperatureHistory::MAX_SAMPLES) count = TemperatureHistory::MAX_SAMPLES;
+
+    // Allocate on stack — limit to 360 to keep stack usage reasonable
+    if (count > 360) count = 360;
+    TemperatureSample samples[360];
+    size_t n = history.GetSamples(samples, count);
+
+    resp.field("maxSamples", static_cast<int32_t>(TemperatureHistory::MAX_SAMPLES));
+    resp.field("count", static_cast<int32_t>(n));
+    resp.fieldArray("samples");
+    for (size_t i = 0; i < n; i++)
+    {
+        resp.beginObject();
+        resp.field("t", static_cast<int32_t>(samples[i].timestamp));
+        for (int s = 0; s < 4; s++)
+        {
+            char key[4];
+            snprintf(key, sizeof(key), "s%d", s);
+            if (samples[i].IsActive(s))
+                resp.field(key, samples[i].temperatures[s]);
+            else
+                resp.nullField(key);
+        }
         resp.endObject();
     }
     resp.endArray();

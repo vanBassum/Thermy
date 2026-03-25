@@ -46,4 +46,5 @@ private:
     void Cmd_WifiScan(const char* json, JsonWriter& resp);
     void Cmd_GetLogs(const char* json, JsonWriter& resp);
     void Cmd_GetTemperatures(const char* json, JsonWriter& resp);
+    void Cmd_GetHistory(const char* json, JsonWriter& resp);
 };

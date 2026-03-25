@@ -1,7 +1,9 @@
-import { useEffect, useState, useRef } from "react"
-import { backend, type SensorReading } from "@/lib/backend"
+import { useEffect, useState, useCallback } from "react"
+import { backend, type SensorReading, type HistorySample } from "@/lib/backend"
 
-export interface TemperatureHistory {
+export const MAX_SAMPLES = 2048
+
+export interface ChartPoint {
   time: string
   slot0?: number
   slot1?: number
@@ -9,48 +11,46 @@ export interface TemperatureHistory {
   slot3?: number
 }
 
-const MAX_HISTORY = 120
+function sampleToChartPoint(s: HistorySample): ChartPoint {
+  const d = new Date(s.t * 1000)
+  const point: ChartPoint = { time: d.toLocaleTimeString() }
+  if (s.s0 !== null) point.slot0 = Math.round(s.s0 * 10) / 10
+  if (s.s1 !== null) point.slot1 = Math.round(s.s1 * 10) / 10
+  if (s.s2 !== null) point.slot2 = Math.round(s.s2 * 10) / 10
+  if (s.s3 !== null) point.slot3 = Math.round(s.s3 * 10) / 10
+  return point
+}
 
-export function useTemperatures(pollIntervalMs = 2000) {
+export function useTemperatures(pollIntervalMs = 5000) {
   const [sensors, setSensors] = useState<SensorReading[]>([])
-  const [history, setHistory] = useState<TemperatureHistory[]>([])
-  const historyRef = useRef<TemperatureHistory[]>([])
+  const [history, setHistory] = useState<ChartPoint[]>([])
+
+  const refresh = useCallback(async () => {
+    try {
+      const [temps, hist] = await Promise.all([
+        backend.getTemperatures(),
+        backend.getHistory(360),
+      ])
+      setSensors(temps.sensors)
+      setHistory(hist.samples.map(sampleToChartPoint))
+    } catch {
+      // ignore
+    }
+  }, [])
 
   useEffect(() => {
-    let mounted = true
-
-    const poll = async () => {
-      try {
-        const data = await backend.getTemperatures()
-        if (!mounted) return
-
-        setSensors(data.sensors)
-
-        const now = new Date().toLocaleTimeString()
-        const point: TemperatureHistory = { time: now }
-
-        for (const s of data.sensors) {
-          if (s.active) {
-            const key = `slot${s.slot}` as keyof TemperatureHistory
-            ;(point as Record<string, unknown>)[key] = Math.round(s.temperature * 10) / 10
-          }
-        }
-
-        const updated = [...historyRef.current, point].slice(-MAX_HISTORY)
-        historyRef.current = updated
-        setHistory(updated)
-      } catch {
-        // ignore poll failures
-      }
-    }
-
-    poll()
-    const timer = setInterval(poll, pollIntervalMs)
-    return () => {
-      mounted = false
-      clearInterval(timer)
-    }
-  }, [pollIntervalMs])
+    refresh()
+    const timer = setInterval(refresh, pollIntervalMs)
+    return () => clearInterval(timer)
+  }, [refresh, pollIntervalMs])
 
   return { sensors, history }
+}
+
+export function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`
+  const hours = seconds / 3600
+  if (hours < 24) return `${hours.toFixed(1)}h`
+  return `${(hours / 24).toFixed(1)}d`
 }

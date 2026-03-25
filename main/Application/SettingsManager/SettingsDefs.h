@@ -18,6 +18,9 @@ inline const SettingDef SETTINGS_DEFS[] = {
     { "ntp.server",    SettingType::String, "NTP Server",    "pool.ntp.org" },
     { "ntp.timezone",  SettingType::String, "Timezone (POSIX)", "CET-1CEST,M3.5.0,M10.5.0/3" },
 
+    // Temperature history
+    { "history.rate",  SettingType::Int, "History Sample Rate (s)", "10" },
+
     // Sensor timing (milliseconds)
     { "sensor.scan",   SettingType::Int, "Bus Scan Interval (ms)",  "5000" },
     { "sensor.read",   SettingType::Int, "Temp Read Interval (ms)", "1000" },
