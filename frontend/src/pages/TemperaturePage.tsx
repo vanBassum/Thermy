@@ -14,7 +14,7 @@ const SLOT_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#eab308"] as const
 const SLOT_NAMES = ["Red", "Blue", "Green", "Yellow"] as const
 
 export default function TemperaturePage() {
-  const { sensors, history } = useTemperatures(2000)
+  const { sensors, history, graphRange } = useTemperatures(5000)
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -57,7 +57,7 @@ export default function TemperaturePage() {
             />
             <YAxis
               tick={{ fill: "#888", fontSize: 11 }}
-              domain={["auto", "auto"]}
+              domain={[graphRange.min, graphRange.max]}
               width={40}
             />
             <Tooltip

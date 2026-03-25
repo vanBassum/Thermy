@@ -3,18 +3,16 @@
 #include "InitState.h"
 #include "Mutex.h"
 #include "Timer.h"
-#include <ctime>
+#include <cmath>
 
 class SensorManager;
 class SettingsManager;
 
 struct TemperatureSample
 {
-    time_t timestamp = 0;
-    float temperatures[4] = {};
-    uint8_t activeMask = 0; // bit per slot
+    float temperatures[4] = {NAN, NAN, NAN, NAN};
 
-    bool IsActive(int slot) const { return (activeMask >> slot) & 1; }
+    bool IsActive(int slot) const { return !std::isnan(temperatures[slot]); }
 };
 
 class TemperatureHistory
@@ -47,9 +45,8 @@ private:
     Timer sampleTimer;
 
     TemperatureSample buffer[MAX_SAMPLES];
-    size_t head = 0;  // next write position
+    size_t head = 0;
     size_t count = 0;
 
     void TakeSample();
-    void ReconfigureTimer();
 };

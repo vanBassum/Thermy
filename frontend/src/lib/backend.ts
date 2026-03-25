@@ -323,7 +323,6 @@ export interface TemperaturesResponse {
 }
 
 export interface HistorySample {
-  t: number
   s0: number | null
   s1: number | null
   s2: number | null
@@ -332,6 +331,7 @@ export interface HistorySample {
 
 export interface HistoryResponse {
   maxSamples: number
+  rate: number
   count: number
   samples: HistorySample[]
 }

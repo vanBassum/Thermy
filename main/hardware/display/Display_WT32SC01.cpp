@@ -113,7 +113,7 @@ void Display_WT32SC01::InitTouch()
     tp_cfg.int_gpio_num = TOUCH_INT;
     tp_cfg.levels.interrupt = 0;
     tp_cfg.flags.swap_xy = true;
-    tp_cfg.flags.mirror_x = true;
+    tp_cfg.flags.mirror_x = false;
     tp_cfg.flags.mirror_y = true;
 
     err = esp_lcd_touch_new_i2c_ft5x06(tp_io, &tp_cfg, &touch);

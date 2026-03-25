@@ -222,12 +222,12 @@ void CommandManager::Cmd_GetHistory(const char* json, JsonWriter& resp)
     size_t n = history.GetSamples(samples, count);
 
     resp.field("maxSamples", static_cast<int32_t>(TemperatureHistory::MAX_SAMPLES));
+    resp.field("rate", serviceProvider_.getSettingsManager().getInt("history.rate", TemperatureHistory::DEFAULT_RATE_SECONDS));
     resp.field("count", static_cast<int32_t>(n));
     resp.fieldArray("samples");
     for (size_t i = 0; i < n; i++)
     {
         resp.beginObject();
-        resp.field("t", static_cast<int32_t>(samples[i].timestamp));
         for (int s = 0; s < 4; s++)
         {
             char key[4];

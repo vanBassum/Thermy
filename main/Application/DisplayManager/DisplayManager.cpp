@@ -135,10 +135,13 @@ void DisplayManager::UiSetup()
     lv_obj_set_size(chart, LCD_HRES - 2 * slotMargin, chartH);
     lv_obj_set_pos(chart, slotMargin, chartY);
 
+    int32_t graphMin = settingsManager.getInt("graph.min", 0);
+    int32_t graphMax = settingsManager.getInt("graph.max", 100);
+
     lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
     lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
     lv_chart_set_point_count(chart, 120);
-    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 0, 100);
+    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, graphMin, graphMax);
     lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR);
     lv_chart_set_div_line_count(chart, 5, 10);
 
@@ -147,11 +150,31 @@ void DisplayManager::UiSetup()
     lv_obj_set_style_border_width(chart, 1, LV_PART_MAIN);
     lv_obj_set_style_border_color(chart, lv_color_hex(0x333333), LV_PART_MAIN);
     lv_obj_set_style_radius(chart, 6, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(chart, 4, LV_PART_MAIN);
+    lv_obj_set_style_pad_left(chart, 30, LV_PART_MAIN);
+    lv_obj_set_style_pad_right(chart, 4, LV_PART_MAIN);
+    lv_obj_set_style_pad_top(chart, 4, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(chart, 4, LV_PART_MAIN);
     lv_obj_clear_flag(chart, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
 
     // Subtle grid lines
     lv_obj_set_style_line_color(chart, lv_color_hex(0x222222), LV_PART_MAIN);
+
+    // Y-axis labels
+    char labelBuf[8];
+    int32_t range = graphMax - graphMin;
+    int32_t step = range / 5;
+    for (int i = 0; i <= 5; i++)
+    {
+        int32_t val = graphMax - i * step;
+        snprintf(labelBuf, sizeof(labelBuf), "%ld", val);
+        lv_obj_t *lbl = lv_label_create(chart);
+        lv_label_set_text(lbl, labelBuf);
+        lv_obj_set_style_text_color(lbl, lv_color_hex(0x666666), LV_PART_MAIN);
+        lv_obj_set_style_text_font(lbl, &lv_font_montserrat_10, LV_PART_MAIN);
+        // Position along left edge, distributed vertically
+        lv_coord_t yPos = (lv_coord_t)(i * (chartH - 8) / 5);
+        lv_obj_set_pos(lbl, 2, yPos);
+    }
 
     for (int i = 0; i < 4; i++)
         chartSeries[i] = lv_chart_add_series(chart, channelColors[i], LV_CHART_AXIS_PRIMARY_Y);

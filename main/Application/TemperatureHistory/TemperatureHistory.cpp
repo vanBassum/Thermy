@@ -34,15 +34,13 @@ void TemperatureHistory::Init()
 void TemperatureHistory::TakeSample()
 {
     TemperatureSample sample = {};
-    sample.timestamp = time(nullptr);
 
     for (int i = 0; i < 4; i++)
     {
         if (sensorManager.IsSlotActive(i))
-        {
             sample.temperatures[i] = sensorManager.GetTemperature(i);
-            sample.activeMask |= (1 << i);
-        }
+        else
+            sample.temperatures[i] = NAN;
     }
 
     LOCK(mutex);
@@ -60,9 +58,7 @@ size_t TemperatureHistory::GetSamples(TemperatureSample *out, size_t maxCount)
     if (n == 0)
         return 0;
 
-    // Oldest sample is at (head - count) mod MAX_SAMPLES
     size_t start = (head + MAX_SAMPLES - count) % MAX_SAMPLES;
-    // Skip to only return the last n samples
     size_t offset = count - n;
     size_t readPos = (start + offset) % MAX_SAMPLES;
 
