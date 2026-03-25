@@ -13,6 +13,12 @@ inline const SettingDef SETTINGS_DEFS[] = {
 
     // Device
     { "device.name",   SettingType::String, "Device Name",   "Skeleton" },
+
+    // Sensor slot addresses (hex string of 64-bit OneWire address, empty = unassigned)
+    { "sensor.0",      SettingType::String, "Sensor Slot 1 (Red)",    "" },
+    { "sensor.1",      SettingType::String, "Sensor Slot 2 (Blue)",   "" },
+    { "sensor.2",      SettingType::String, "Sensor Slot 3 (Green)",  "" },
+    { "sensor.3",      SettingType::String, "Sensor Slot 4 (Yellow)", "" },
 };
 
 inline constexpr int SETTINGS_DEFS_COUNT = sizeof(SETTINGS_DEFS) / sizeof(SETTINGS_DEFS[0]);
