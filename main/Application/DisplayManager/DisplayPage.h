@@ -137,6 +137,17 @@ protected:
             page->ShowKeyboard(lv_event_get_target(e));
         }, LV_EVENT_FOCUSED, this);
 
+        // Hide keyboard when textarea accepts (OK) or cancels
+        lv_obj_add_event_cb(ta, [](lv_event_t *e) {
+            auto *page = static_cast<DisplayPage *>(lv_event_get_user_data(e));
+            page->HideKeyboard();
+        }, LV_EVENT_READY, this);
+
+        lv_obj_add_event_cb(ta, [](lv_event_t *e) {
+            auto *page = static_cast<DisplayPage *>(lv_event_get_user_data(e));
+            page->HideKeyboard();
+        }, LV_EVENT_CANCEL, this);
+
         return ta;
     }
 
@@ -157,11 +168,6 @@ protected:
             lv_obj_set_style_text_color(keyboard, lv_color_white(), LV_PART_ITEMS);
             lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x333333), LV_PART_ITEMS);
 
-            // Hide keyboard when OK/Enter is pressed
-            lv_obj_add_event_cb(keyboard, [](lv_event_t *e) {
-                auto *page = static_cast<DisplayPage *>(lv_event_get_user_data(e));
-                page->HideKeyboard();
-            }, LV_EVENT_READY, this);
         }
         lv_keyboard_set_textarea(keyboard, textarea);
         lv_obj_clear_flag(keyboard, LV_OBJ_FLAG_HIDDEN);
