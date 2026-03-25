@@ -78,9 +78,6 @@ void Display_WT32SC01::InitTouch()
 {
     ESP_LOGI(TAG, "Initializing GT911 touch controller");
 
-    // Touch is currently disabled
-    return;
-
     // --- I2C master bus (new API) ---
     i2c_master_bus_config_t i2c_bus_cfg = {};
     i2c_bus_cfg.clk_source = I2C_CLK_SRC_DEFAULT;

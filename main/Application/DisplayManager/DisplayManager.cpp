@@ -206,6 +206,8 @@ void DisplayManager::UiUpdate()
 
 // ── Assignment popup ─────────────────────────────────────────
 
+static const char *slotNames[4] = {"Red", "Blue", "Green", "Yellow"};
+
 void DisplayManager::ShowAssignPopup(uint64_t address)
 {
     if (assignPopup)
@@ -214,13 +216,76 @@ void DisplayManager::ShowAssignPopup(uint64_t address)
     popupSensorAddress = address;
     popupShownAt = xTaskGetTickCount();
 
-    char body[64];
-    snprintf(body, sizeof(body), "Sensor %016" PRIX64 "\nAssign to slot:", address);
+    // Dark overlay container (full screen)
+    assignPopup = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(assignPopup, LCD_HRES, LCD_VRES);
+    lv_obj_set_pos(assignPopup, 0, 0);
+    lv_obj_set_style_bg_color(assignPopup, lv_color_hex(0x101010), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(assignPopup, LV_OPA_90, LV_PART_MAIN);
+    lv_obj_set_style_border_width(assignPopup, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(assignPopup, 0, LV_PART_MAIN);
+    lv_obj_clear_flag(assignPopup, LV_OBJ_FLAG_SCROLLABLE);
 
-    static const char *btnTexts[] = {"Red", "Blue", "Green", "Yellow", ""};
-    assignPopup = lv_msgbox_create(NULL, "New Sensor", body, btnTexts, false);
-    lv_obj_center(assignPopup);
-    lv_obj_add_event_cb(assignPopup, PopupEventCb, LV_EVENT_VALUE_CHANGED, this);
+    // Title
+    lv_obj_t *title = lv_label_create(assignPopup);
+    lv_label_set_text(title, "New Sensor Detected");
+    lv_obj_set_style_text_color(title, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 20);
+
+    // Address label
+    char addrStr[32];
+    snprintf(addrStr, sizeof(addrStr), "%016" PRIX64, address);
+    lv_obj_t *addrLabel = lv_label_create(assignPopup);
+    lv_label_set_text(addrLabel, addrStr);
+    lv_obj_set_style_text_color(addrLabel, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
+    lv_obj_set_style_text_font(addrLabel, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_align(addrLabel, LV_ALIGN_TOP_MID, 0, 50);
+
+    // Subtitle
+    lv_obj_t *subtitle = lv_label_create(assignPopup);
+    lv_label_set_text(subtitle, "Assign to slot:");
+    lv_obj_set_style_text_color(subtitle, lv_color_white(), LV_PART_MAIN);
+    lv_obj_align(subtitle, LV_ALIGN_TOP_MID, 0, 75);
+
+    // 4 big color buttons in a row
+    static constexpr lv_coord_t btnW = 100;
+    static constexpr lv_coord_t btnH = 60;
+    static constexpr lv_coord_t btnGap = 12;
+    lv_coord_t totalW = 4 * btnW + 3 * btnGap;
+    lv_coord_t startX = (LCD_HRES - totalW) / 2;
+    lv_coord_t btnY = 110;
+
+    for (int i = 0; i < 4; i++)
+    {
+        lv_obj_t *btn = lv_btn_create(assignPopup);
+        lv_obj_set_size(btn, btnW, btnH);
+        lv_obj_set_pos(btn, startX + i * (btnW + btnGap), btnY);
+
+        lv_obj_set_style_bg_color(btn, channelColors[i], LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_radius(btn, 10, LV_PART_MAIN);
+        lv_obj_set_style_border_width(btn, 2, LV_PART_MAIN);
+        lv_obj_set_style_border_color(btn, lv_color_white(), LV_PART_MAIN);
+        lv_obj_set_style_shadow_width(btn, 0, LV_PART_MAIN);
+
+        lv_obj_t *label = lv_label_create(btn);
+        lv_label_set_text(label, slotNames[i]);
+        lv_obj_set_style_text_color(label, lv_color_white(), LV_PART_MAIN);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_14, LV_PART_MAIN);
+        lv_obj_center(label);
+
+        // Store slot index and add click handler
+        lv_obj_set_user_data(btn, this);
+        lv_obj_add_event_cb(btn, PopupEventCb, LV_EVENT_CLICKED, reinterpret_cast<void *>(i));
+    }
+
+    // Timeout hint
+    lv_obj_t *hint = lv_label_create(assignPopup);
+    lv_label_set_text(hint, "Auto-assigns in 30s");
+    lv_obj_set_style_text_color(hint, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
+    lv_obj_set_style_text_font(hint, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -20);
 
     ESP_LOGI(TAG, "Showing assignment popup for %016" PRIX64, address);
 }
@@ -229,7 +294,7 @@ void DisplayManager::CloseAssignPopup()
 {
     if (assignPopup)
     {
-        lv_msgbox_close(assignPopup);
+        lv_obj_del(assignPopup);
         assignPopup = nullptr;
         popupSensorAddress = 0;
     }
@@ -256,7 +321,6 @@ void DisplayManager::AutoAssignToFirstEmpty()
         }
     }
 
-    // No empty slot, dismiss the pending sensor
     ESP_LOGW(TAG, "No empty slot available, dismissing pending sensor");
     sensorManager.DismissPendingSensor();
     CloseAssignPopup();
@@ -264,11 +328,11 @@ void DisplayManager::AutoAssignToFirstEmpty()
 
 void DisplayManager::PopupEventCb(lv_event_t *e)
 {
-    auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
-    lv_obj_t *mbox = lv_event_get_current_target(e);
-    uint16_t btn = lv_msgbox_get_active_btn(mbox);
-    if (btn < 4)
+    int slot = reinterpret_cast<int>(lv_event_get_user_data(e));
+    lv_obj_t *btn = lv_event_get_target(e);
+    auto *self = static_cast<DisplayManager *>(lv_obj_get_user_data(btn));
+    if (self && slot >= 0 && slot < 4)
     {
-        self->OnSlotSelected(btn);
+        self->OnSlotSelected(slot);
     }
 }
