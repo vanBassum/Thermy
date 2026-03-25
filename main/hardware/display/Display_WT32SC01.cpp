@@ -110,8 +110,20 @@ void Display_WT32SC01::InitTouch()
     io_cfg.dc_bit_offset = 0;
     io_cfg.flags.dc_low_on_data = 0;
     io_cfg.flags.disable_control_phase = 1;
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(i2cBus, &io_cfg, &tp_io));
-    ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_gt911(tp_io, &tp_cfg, &touch));
+    esp_err_t err = esp_lcd_new_panel_io_i2c(i2cBus, &io_cfg, &tp_io);
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Failed to create touch panel IO: %s", esp_err_to_name(err));
+        return;
+    }
+
+    err = esp_lcd_touch_new_i2c_gt911(tp_io, &tp_cfg, &touch);
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "GT911 init failed: %s — touch disabled", esp_err_to_name(err));
+        touch = nullptr;
+        return;
+    }
 
     // --- Register input device with LVGL ---
     static lv_indev_drv_t indev_drv;
