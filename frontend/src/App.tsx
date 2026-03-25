@@ -30,7 +30,7 @@ export default function App() {
       <AppSidebar currentPage={page} onNavigate={navigate} />
       <main className="flex h-screen w-full min-w-0 flex-col overflow-hidden p-6">
         <SidebarTrigger className="shrink-0 md:hidden" />
-        <div className="min-h-0 w-full flex-1">
+        <div className="min-h-0 w-full flex-1 overflow-y-auto">
           <PageContent page={page} />
         </div>
       </main>
