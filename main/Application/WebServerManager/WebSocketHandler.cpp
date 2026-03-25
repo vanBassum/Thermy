@@ -74,7 +74,12 @@ void WebSocketHandler::OnClientDisconnected(int fd)
 
 void WebSocketHandler::Broadcast(httpd_handle_t server, const char* json, int len)
 {
-    LOCK(wsMutex_);
+    int clients[MAX_WS_CLIENTS];
+
+    {
+        LOCK(wsMutex_);
+        memcpy(clients, wsClients_, sizeof(clients));
+    }
 
     httpd_ws_frame_t frame = {};
     frame.type = HTTPD_WS_TYPE_TEXT;
@@ -83,11 +88,12 @@ void WebSocketHandler::Broadcast(httpd_handle_t server, const char* json, int le
 
     for (int i = 0; i < MAX_WS_CLIENTS; i++)
     {
-        if (wsClients_[i] != 0)
+        if (clients[i] != 0)
         {
-            if (httpd_ws_send_frame_async(server, wsClients_[i], &frame) != ESP_OK)
+            if (httpd_ws_send_frame_async(server, clients[i], &frame) != ESP_OK)
             {
-                ESP_LOGW(TAG, "Broadcast failed to fd=%d, removing", wsClients_[i]);
+                ESP_LOGW(TAG, "Broadcast failed to fd=%d, removing", clients[i]);
+                LOCK(wsMutex_);
                 wsClients_[i] = 0;
             }
         }
