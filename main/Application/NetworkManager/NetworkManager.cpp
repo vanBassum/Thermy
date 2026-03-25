@@ -56,7 +56,7 @@ void NetworkManager::Init()
         if (!staConnected_)
         {
             staRetryCount_++;
-            ESP_LOGW(TAG, "STA connect timeout (attempt %d/%d)", staRetryCount_, MaxStaRetries);
+            ESP_LOGW(TAG, "STA connect timeout (attempt %d/%d)", staRetryCount_.load(), MaxStaRetries);
 
             if (staRetryCount_ >= MaxStaRetries)
             {
@@ -110,7 +110,7 @@ void NetworkManager::AttemptStaConnect()
     }
 
     ESP_LOGI(TAG, "Attempting STA connection to '%s' (attempt %d/%d)",
-             staSsid_, staRetryCount_ + 1, MaxStaRetries);
+             staSsid_, staRetryCount_.load() + 1, MaxStaRetries);
 
     wifi_interface_.Stop();
     staConnected_ = false;
