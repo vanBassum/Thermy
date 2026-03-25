@@ -9,6 +9,7 @@
 #include "esp_system.h"
 #include "esp_heap_caps.h"
 #include "NetworkManager.h"
+#include "SensorManager.h"
 #include <cstring>
 
 const CommandManager::CommandEntry CommandManager::commands_[] = {
@@ -21,6 +22,7 @@ const CommandManager::CommandEntry CommandManager::commands_[] = {
     { "reboot",        &CommandManager::Cmd_Reboot },
     { "wifiScan",      &CommandManager::Cmd_WifiScan },
     { "getLogs",       &CommandManager::Cmd_GetLogs },
+    { "getTemperatures", &CommandManager::Cmd_GetTemperatures },
     { nullptr, nullptr },
 };
 
@@ -178,4 +180,27 @@ void CommandManager::Cmd_WifiScan(const char* json, JsonWriter& resp)
 void CommandManager::Cmd_GetLogs(const char* json, JsonWriter& resp)
 {
     serviceProvider_.getLogManager().WriteHistory(resp);
+}
+
+void CommandManager::Cmd_GetTemperatures(const char* json, JsonWriter& resp)
+{
+    auto& sensors = serviceProvider_.getSensorManager();
+
+    resp.fieldArray("sensors");
+    for (int i = 0; i < 4; i++)
+    {
+        resp.beginObject();
+        resp.field("slot", static_cast<int32_t>(i));
+        resp.field("active", sensors.IsSlotActive(i));
+
+        char addrBuf[20] = {};
+        uint64_t addr = sensors.GetSlotAddress(i);
+        if (addr != 0)
+            snprintf(addrBuf, sizeof(addrBuf), "%016llX", addr);
+        resp.field("address", addrBuf);
+
+        resp.field("temperature", sensors.IsSlotActive(i) ? sensors.GetTemperature(i) : 0.0f);
+        resp.endObject();
+    }
+    resp.endArray();
 }

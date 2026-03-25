@@ -5,11 +5,14 @@ import HomePage from "@/pages/HomePage"
 import ConsolePage from "@/pages/ConsolePage"
 import SettingsPage from "@/pages/SettingsPage"
 import FirmwarePage from "@/pages/FirmwarePage"
+import TemperaturePage from "@/pages/TemperaturePage"
 
 function PageContent({ page }: { page: Page }) {
   switch (page) {
     case "home":
       return <HomePage />
+    case "temperature":
+      return <TemperaturePage />
     case "console":
       return <ConsolePage />
     case "settings":

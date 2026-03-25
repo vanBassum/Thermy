@@ -201,6 +201,10 @@ class BackendService {
     return this.send<WifiScanResponse>("wifiScan")
   }
 
+  async getTemperatures(): Promise<TemperaturesResponse> {
+    return this.send<TemperaturesResponse>("getTemperatures")
+  }
+
   async uploadFirmware(
     file: File,
     onProgress?: (percent: number) => void,
@@ -301,5 +305,16 @@ export interface WifiScanResponse {
 
 export interface LogsResponse {
   lines: string[]
+}
+
+export interface SensorReading {
+  slot: number
+  active: boolean
+  address: string
+  temperature: number
+}
+
+export interface TemperaturesResponse {
+  sensors: SensorReading[]
 }
 
