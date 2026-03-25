@@ -20,7 +20,7 @@ class TemperatureHistory
     inline static constexpr const char *TAG = "TempHistory";
 
 public:
-    static constexpr size_t MAX_SAMPLES = 2048;
+    static constexpr size_t MAX_SAMPLES = 1024;
     static constexpr int32_t DEFAULT_RATE_SECONDS = 10;
 
     explicit TemperatureHistory(ServiceProvider &ctx);
