@@ -2,6 +2,7 @@
 
 #include "ServiceProvider.h"
 #include "InitState.h"
+#include "Mutex.h"
 #include <esp_ota_ops.h>
 #include <esp_vfs_fat.h>
 
@@ -46,4 +47,6 @@ private:
     bool wwwActive_ = false;
 
     void AbortOta();
+
+    Mutex mutex_;
 };

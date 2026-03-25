@@ -1,4 +1,5 @@
 #include "UpdateManager.h"
+#include "ContextLock.h"
 #include "esp_log.h"
 #include "esp_system.h"
 
@@ -26,6 +27,7 @@ void UpdateManager::Init()
 
 bool UpdateManager::BeginAppUpdate()
 {
+    LOCK(mutex_);
     if (otaActive_)
     {
         ESP_LOGW(TAG, "OTA already in progress");
@@ -53,6 +55,7 @@ bool UpdateManager::BeginAppUpdate()
 
 bool UpdateManager::WriteAppChunk(const void* data, size_t size)
 {
+    LOCK(mutex_);
     if (!otaActive_) return false;
 
     esp_err_t err = esp_ota_write(otaHandle_, data, size);
@@ -67,6 +70,7 @@ bool UpdateManager::WriteAppChunk(const void* data, size_t size)
 
 const char* UpdateManager::FinalizeAppUpdate()
 {
+    LOCK(mutex_);
     if (!otaActive_) return "No OTA in progress";
 
     otaActive_ = false;
@@ -117,6 +121,7 @@ const char* UpdateManager::GetNextPartition() const
 
 bool UpdateManager::BeginWwwUpdate()
 {
+    LOCK(mutex_);
     if (wwwActive_)
     {
         ESP_LOGW(TAG, "WWW update already in progress");
@@ -145,6 +150,7 @@ bool UpdateManager::BeginWwwUpdate()
 
 bool UpdateManager::WriteWwwChunk(const void* data, size_t size)
 {
+    LOCK(mutex_);
     if (!wwwActive_) return false;
 
     if (wwwOffset_ + size > wwwPartition_->size)
@@ -168,6 +174,7 @@ bool UpdateManager::WriteWwwChunk(const void* data, size_t size)
 
 const char* UpdateManager::FinalizeWwwUpdate()
 {
+    LOCK(mutex_);
     if (!wwwActive_) return "No WWW update in progress";
 
     wwwActive_ = false;
