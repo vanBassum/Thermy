@@ -14,6 +14,7 @@ set(SOURCE_FILES_LIST
     "Application/DisplayManager/DisplayManager.cpp"
     "hardware/display/Display_WT32SC01.cpp"
     "Application/SensorManager/SensorManager.cpp"
+    "Application/TimeManager/TimeManager.cpp"
     "lib/system/DateTime.cpp"
     "lib/system/TimeSpan.cpp"
 )
@@ -29,6 +30,7 @@ set(INCLUDE_DIRS_LIST
     "Application/LogManager"
     "Application/DisplayManager"
     "Application/SensorManager"
+    "Application/TimeManager"
     "hardware"
     "hardware/display"
     "lib"

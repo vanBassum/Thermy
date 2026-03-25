@@ -6,6 +6,7 @@
 #include "NetworkManager/NetworkManager.h"
 #include "SensorManager/SensorManager.h"
 #include "SettingsManager/SettingsManager.h"
+#include "TimeManager/TimeManager.h"
 #include "UpdateManager/UpdateManager.h"
 #include "WebServerManager/WebServerManager.h"
 
@@ -23,6 +24,7 @@ public:
     NetworkManager& getNetworkManager() override { return m_networkManager; }
     SensorManager& getSensorManager() override { return m_sensorManager; }
     SettingsManager& getSettingsManager() override { return m_settingsManager; }
+    TimeManager& getTimeManager() override { return m_timeManager; }
     UpdateManager& getUpdateManager() override { return m_updateManager; }
     WebServerManager& getWebServerManager() override { return m_webServerManager; }
 
@@ -31,6 +33,7 @@ private:
     SettingsManager m_settingsManager{*this};
     NetworkManager m_networkManager{*this};
     SensorManager m_sensorManager{*this};
+    TimeManager m_timeManager{*this};
     DisplayManager m_displayManager{*this};
     CommandManager m_commandManager{*this};
     UpdateManager m_updateManager{*this};

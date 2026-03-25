@@ -6,6 +6,7 @@ class LogManager;
 class NetworkManager;
 class SensorManager;
 class SettingsManager;
+class TimeManager;
 class UpdateManager;
 class WebServerManager;
 
@@ -18,6 +19,7 @@ public:
     virtual NetworkManager& getNetworkManager() = 0;
     virtual SensorManager& getSensorManager() = 0;
     virtual SettingsManager& getSettingsManager() = 0;
+    virtual TimeManager& getTimeManager() = 0;
     virtual UpdateManager& getUpdateManager() = 0;
     virtual WebServerManager& getWebServerManager() = 0;
 };
