@@ -1,6 +1,6 @@
 #include "Display_WT32SC01.h"
 #include "esp_lcd_st7796.h"
-#include "esp_lcd_touch_gt911.h"
+#include "esp_lcd_touch_ft5x06.h"
 #include <cassert>
 
 Display_WT32SC01::~Display_WT32SC01()
@@ -69,16 +69,15 @@ void Display_WT32SC01::Init()
 
     ESP_LOGI(TAG, "WT32-SC01 LVGL display registered");
 
-    // --- Touch (disabled for now) ---
+    // --- Touch ---
     InitTouch();
-    ESP_LOGI(TAG, "WT32-SC01 touch initialized");
 }
 
 void Display_WT32SC01::InitTouch()
 {
-    ESP_LOGI(TAG, "Initializing GT911 touch controller");
+    ESP_LOGI(TAG, "Initializing FT6336 touch controller");
 
-    // --- I2C master bus (new API) ---
+    // --- I2C master bus ---
     i2c_master_bus_config_t i2c_bus_cfg = {};
     i2c_bus_cfg.clk_source = I2C_CLK_SRC_DEFAULT;
     i2c_bus_cfg.i2c_port = I2C_NUM_0;
@@ -88,28 +87,17 @@ void Display_WT32SC01::InitTouch()
     i2c_bus_cfg.flags.enable_internal_pullup = true;
     ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &i2cBus));
 
-    // --- Touch configuration ---
-    esp_lcd_touch_config_t tp_cfg = {};
-    tp_cfg.x_max = LCD_VRES;
-    tp_cfg.y_max = LCD_HRES;
-    tp_cfg.rst_gpio_num = TOUCH_RST;
-    tp_cfg.int_gpio_num = TOUCH_INT;
-    tp_cfg.levels.reset = 0;
-    tp_cfg.levels.interrupt = 0;
-    tp_cfg.flags.swap_xy = true;
-    tp_cfg.flags.mirror_x = false;
-    tp_cfg.flags.mirror_y = false;
-
+    // --- Touch panel IO ---
     esp_lcd_panel_io_handle_t tp_io = nullptr;
     esp_lcd_panel_io_i2c_config_t io_cfg = {};
-    io_cfg.dev_addr = ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS;
+    io_cfg.dev_addr = ESP_LCD_TOUCH_IO_I2C_FT5x06_ADDRESS;
     io_cfg.scl_speed_hz = 400000;
     io_cfg.control_phase_bytes = 1;
-    io_cfg.lcd_cmd_bits = 16;
+    io_cfg.lcd_cmd_bits = 8;
     io_cfg.lcd_param_bits = 0;
-    io_cfg.dc_bit_offset = 0;
     io_cfg.flags.dc_low_on_data = 0;
     io_cfg.flags.disable_control_phase = 1;
+
     esp_err_t err = esp_lcd_new_panel_io_i2c(i2cBus, &io_cfg, &tp_io);
     if (err != ESP_OK)
     {
@@ -117,10 +105,21 @@ void Display_WT32SC01::InitTouch()
         return;
     }
 
-    err = esp_lcd_touch_new_i2c_gt911(tp_io, &tp_cfg, &touch);
+    // --- Touch configuration ---
+    esp_lcd_touch_config_t tp_cfg = {};
+    tp_cfg.x_max = LCD_VRES;
+    tp_cfg.y_max = LCD_HRES;
+    tp_cfg.rst_gpio_num = GPIO_NUM_NC;
+    tp_cfg.int_gpio_num = TOUCH_INT;
+    tp_cfg.levels.interrupt = 0;
+    tp_cfg.flags.swap_xy = true;
+    tp_cfg.flags.mirror_x = false;
+    tp_cfg.flags.mirror_y = false;
+
+    err = esp_lcd_touch_new_i2c_ft5x06(tp_io, &tp_cfg, &touch);
     if (err != ESP_OK)
     {
-        ESP_LOGW(TAG, "GT911 init failed: %s — touch disabled", esp_err_to_name(err));
+        ESP_LOGW(TAG, "FT6336 init failed: %s — touch disabled", esp_err_to_name(err));
         touch = nullptr;
         return;
     }
@@ -132,6 +131,8 @@ void Display_WT32SC01::InitTouch()
     indev_drv.read_cb = LvglTouchCb;
     indev_drv.user_data = this;
     inputDev = lv_indev_drv_register(&indev_drv);
+
+    ESP_LOGI(TAG, "FT6336 touch initialized successfully");
 }
 
 

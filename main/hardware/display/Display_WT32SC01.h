@@ -6,7 +6,7 @@
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_vendor.h"
 #include "esp_lcd_panel_ops.h"
-#include "esp_lcd_touch_gt911.h"
+#include "esp_lcd_touch_ft5x06.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 
@@ -22,10 +22,9 @@ class Display_WT32SC01
     static constexpr gpio_num_t LCD_RST  = GPIO_NUM_22;
     static constexpr gpio_num_t LCD_BL   = GPIO_NUM_23;
 
-    // --- Touch (GT911) pins ---
+    // --- Touch (FT6336) pins ---
     static constexpr gpio_num_t TOUCH_SDA = GPIO_NUM_18;
     static constexpr gpio_num_t TOUCH_SCL = GPIO_NUM_19;
-    static constexpr gpio_num_t TOUCH_RST = GPIO_NUM_25;
     static constexpr gpio_num_t TOUCH_INT = GPIO_NUM_39;
 
 public:
