@@ -233,7 +233,8 @@ void SensorManager::ScanBus()
     for (int s = 0; s < (int)MAX_SENSORS; s++)
         if (slots[s].active) activeCount++;
 
-    ESP_LOGI(TAG, "Scan: %d discovered, %d active slots, %d pending", discoveredCount, activeCount, pendingCount);
+    if (pendingCount > 0)
+        ESP_LOGI(TAG, "Scan: %d new sensor(s) found", pendingCount);
 }
 
 bool SensorManager::TriggerTemperatureConversions()

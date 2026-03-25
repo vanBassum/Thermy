@@ -199,7 +199,7 @@ void DisplayManager::UiUpdate()
     // Auto-assign timeout
     if (assignPopup && (xTaskGetTickCount() - popupShownAt > POPUP_TIMEOUT))
     {
-        ESP_LOGI(TAG, "Popup timeout, auto-assigning");
+        ESP_LOGD(TAG, "Popup timeout, auto-assigning");
         AutoAssignToFirstEmpty();
     }
 }
@@ -287,7 +287,7 @@ void DisplayManager::ShowAssignPopup(uint64_t address)
     lv_obj_set_style_text_font(hint, &lv_font_montserrat_14, LV_PART_MAIN);
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -20);
 
-    ESP_LOGI(TAG, "Showing assignment popup for %016" PRIX64, address);
+    ESP_LOGD(TAG, "Showing assignment popup for %016" PRIX64, address);
 }
 
 void DisplayManager::CloseAssignPopup()
@@ -305,7 +305,7 @@ void DisplayManager::OnSlotSelected(int slot)
     if (slot < 0 || slot >= 4)
         return;
 
-    ESP_LOGI(TAG, "User selected slot %d for sensor %016" PRIX64, slot, popupSensorAddress);
+    ESP_LOGD(TAG, "User selected slot %d for sensor %016" PRIX64, slot, popupSensorAddress);
     sensorManager.AssignPendingToSlot(slot);
     CloseAssignPopup();
 }
@@ -321,7 +321,7 @@ void DisplayManager::AutoAssignToFirstEmpty()
         }
     }
 
-    ESP_LOGW(TAG, "No empty slot available, dismissing pending sensor");
+    ESP_LOGD(TAG, "No empty slot available, dismissing pending sensor");
     sensorManager.DismissPendingSensor();
     CloseAssignPopup();
 }
