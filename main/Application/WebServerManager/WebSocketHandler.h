@@ -24,7 +24,7 @@ private:
     Mutex wsMutex_;
     int wsClients_[MAX_WS_CLIENTS] = {};
 
-    char wsBuf_[4096];
+    char wsBuf_[16384];
 
     void AddWsClient(int fd);
     void RemoveWsClient(int fd);
