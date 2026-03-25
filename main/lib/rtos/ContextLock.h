@@ -1,39 +1,94 @@
 #pragma once
 #include "IMutex.h"
+#include "esp_log.h"
+#include "esp_system.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_log.h"
-#include <cassert>
 
-#define LOCK(mutex) ContextLock lock(mutex, __FILE__, __LINE__)
+#ifndef LOCKINFO_BUILD
+#define LOCKINFO_BUILD(mutex) \
+    LockInfo{ &(mutex), #mutex, __FILE__, __LINE__, TAG, nullptr, nullptr }
+#endif
+
+#ifndef LOCK_CTOR_ARGS
+#define LOCK_CTOR_ARGS(mutex) (mutex), LOCKINFO_BUILD(mutex)
+#endif
+
+#define LOCK(mutex) ContextLock lock(LOCK_CTOR_ARGS(mutex))
+
+struct LockInfo
+{
+    const IMutex* mutex;
+    const char* mutexVarName;
+    const char* file;
+    int line;
+    const char* callerTag;
+    const char* taskName;
+    TaskHandle_t taskHandle;
+};
+
 
 class ContextLock
 {
-    constexpr static const char* TAG = "ContextLock";
-    constexpr static TickType_t TIMEOUT_TICKS = pdMS_TO_TICKS(1000);
-    const IMutex& mutex;
+    static constexpr TickType_t kAttemptTimeoutTicks = pdMS_TO_TICKS(5000);
+    static constexpr int kMaxAttempts = 3;
+
+    const IMutex &mutex;
+    LockInfo info;
     bool taken = false;
-    const char* file;
-    int line;
 
 public:
-    ContextLock(const IMutex& mutex, const char* file, int line)
-        : mutex(mutex), file(file), line(line)
+    ContextLock(const IMutex &_mutex, LockInfo _info) noexcept
+        : mutex(_mutex),
+          info(_info)
     {
-        do
+        info.taskHandle = xTaskGetCurrentTaskHandle();
+        info.taskName = pcTaskGetName(info.taskHandle);
+
+        for (int attempt = 1; attempt <= kMaxAttempts; ++attempt)
         {
-            taken = mutex.Take(pdMS_TO_TICKS(TIMEOUT_TICKS));
-            if (!taken)
+            taken = mutex.Take(kAttemptTimeoutTicks);
+            if (taken)
             {
-                const char* taskName = pcTaskGetName(nullptr);
-                ESP_LOGW(TAG, "Timeout waiting for mutex at %s:%d (task: %s)", file, line, taskName ? taskName : "unknown");
+                return;
             }
-        } while (!taken);
+
+            LogLockTimeout(attempt);
+        }
+
+        LogDeadlock();
+        assert(false && "Deadlock detected, rebooting");
+        esp_restart();
     }
 
-    ~ContextLock()
+    ~ContextLock() noexcept
     {
         if (taken)
+        {
             mutex.Give();
+        }
+    }
+
+private:
+    void LogDeadlock() noexcept
+    {
+        ESP_LOGE(info.callerTag ? info.callerTag : "ContextLock",
+                 "DEADLOCK FAILSAFE: mutex '%s' not acquired by task '%s' after (%s:%d). Rebooting.",
+                 info.mutexVarName ? info.mutexVarName : "?",
+                 info.taskName ? info.taskName : "?",
+                 info.file ? info.file : "?",
+                 info.line);
+    }
+
+    void LogLockTimeout(int attempt) noexcept
+    {
+        ESP_LOGE(info.callerTag ? info.callerTag : "ContextLock",
+                 "Timeout waiting for mutex '%s' in task '%s' (%s:%d) after 5s (attempt %d/%d)",
+                 info.mutexVarName ? info.mutexVarName : "?",
+                 info.taskName ? info.taskName : "?",
+                 info.file ? info.file : "?",
+                 info.line,
+                 attempt,
+                 kMaxAttempts);
     }
 };

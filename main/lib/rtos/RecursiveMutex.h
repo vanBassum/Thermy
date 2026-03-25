@@ -3,7 +3,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "IMutex.h"
-#include "ContextLock.h"
 
 
 class RecursiveMutex : public IMutex
@@ -15,13 +14,13 @@ public:
 	{
 		handle = xSemaphoreCreateRecursiveMutex();
 	}
-		
+
 	~RecursiveMutex() override
 	{
 		if(handle != NULL)
 			vSemaphoreDelete(handle);
 	}
-		
+
 	bool Take(TickType_t timeout = portMAX_DELAY) const override
 	{
 		return xSemaphoreTakeRecursive(handle, timeout) == pdTRUE;

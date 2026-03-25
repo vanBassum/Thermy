@@ -15,13 +15,13 @@ public:
 	{
 		handle = xSemaphoreCreateMutex();
 	}
-		
+
 	~Mutex() override
 	{
 		if (handle != NULL)
 			vSemaphoreDelete(handle);
 	}
-		
+
     bool Take(TickType_t timeout = portMAX_DELAY) const override
     {
         return xSemaphoreTake(handle, timeout) == pdTRUE;
@@ -42,6 +42,3 @@ public:
         return xSemaphoreGiveFromISR(handle, pxHigherPriorityTaskWoken) == pdTRUE;
     }
 };
-
-
-

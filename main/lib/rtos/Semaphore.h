@@ -11,13 +11,13 @@ public:
 	{
 		handle = xSemaphoreCreateBinary();
 	}
-		
+
 	~Semaphore()
 	{
 		if (handle != NULL)
 			vSemaphoreDelete(handle);
 	}
-		
+
 	bool Take(TickType_t timeout = portMAX_DELAY)
 	{
 		return xSemaphoreTake(handle, timeout) == pdTRUE;
@@ -37,5 +37,4 @@ public:
 	{
 		return xSemaphoreGiveFromISR(handle, pxHigherPriorityTaskWoken) == pdTRUE;
 	}
-
 };

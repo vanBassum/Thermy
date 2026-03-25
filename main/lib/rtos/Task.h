@@ -1,12 +1,11 @@
 #pragma once
-#include <string>
 #include <functional>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 class Task
 {
-	std::string name = "New task";
+	const char* name = "New task";
 	portBASE_TYPE priority = 0;
 	portSHORT stackDepth = configMINIMAL_STACK_SIZE;
 	TaskHandle_t taskHandle = nullptr;
@@ -18,6 +17,7 @@ class Task
 		if (t && t->callback) {
 			t->callback();
 		}
+		t->taskHandle = nullptr;
 		vTaskDelete(nullptr);
 	}
 
@@ -38,7 +38,9 @@ public:
 		DeleteTaskIfExists();
 	}
 
-	bool Init(const std::string& name, portBASE_TYPE priority, portSHORT stackDepth)
+	bool IsRunning() const { return taskHandle != nullptr; }
+
+	bool Init(const char* name, portBASE_TYPE priority, portSHORT stackDepth)
 	{
 		this->name = name;
 		this->priority = priority;
@@ -46,21 +48,24 @@ public:
 		return true;
 	}
 
-	bool SetHandler(const std::function<void()>& callback)
+	void SetHandler(std::function<void()> callback)
 	{
-		this->callback = callback;
-		return true;
+		this->callback = std::move(callback);
 	}
 
 	bool Run(BaseType_t core = tskNO_AFFINITY)
 	{
 		DeleteTaskIfExists();
+		BaseType_t result;
 		if (core == tskNO_AFFINITY) {
-			xTaskCreate(&TaskFunction, name.c_str(), stackDepth, this, priority, &taskHandle);
+			result = xTaskCreate(&TaskFunction, name, stackDepth, this, priority, &taskHandle);
 		} else {
-			xTaskCreatePinnedToCore(&TaskFunction, name.c_str(), stackDepth, this, priority, &taskHandle, core);
+			result = xTaskCreatePinnedToCore(&TaskFunction, name, stackDepth, this, priority, &taskHandle, core);
 		}
-		return taskHandle != nullptr;
+		if (result != pdPASS) {
+			taskHandle = nullptr;
+		}
+		return result == pdPASS;
 	}
 
 #ifdef configUSE_TASK_NOTIFICATIONS
@@ -72,16 +77,19 @@ public:
 
 	bool Notify(uint32_t bits)
 	{
+		if (taskHandle == nullptr) return false;
 		return xTaskNotify(taskHandle, bits, eSetBits) == pdPASS;
 	}
 
 	bool NotifyFromISR(uint32_t bits)
 	{
+		if (taskHandle == nullptr) return false;
 		return xTaskNotifyFromISR(taskHandle, bits, eSetBits, nullptr) == pdPASS;
 	}
 
 	bool NotifyFromISR(uint32_t bits, BaseType_t* pxHigherPriorityTaskWoken)
 	{
+		if (taskHandle == nullptr) return false;
 		return xTaskNotifyFromISR(taskHandle, bits, eSetBits, pxHigherPriorityTaskWoken) == pdPASS;
 	}
 

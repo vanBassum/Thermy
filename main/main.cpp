@@ -1,29 +1,20 @@
-#include "AppContext.h"
-#include "NvsStorage.h"
-#include "FatFsDriver.h"
+#include <stdio.h>
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "ApplicationContext.h"
 
-constexpr const char *TAG = "Main";
+static const char* TAG = "main";
 
-AppContext appContext;
+ApplicationContext g_appContext;
 
 extern "C" void app_main(void)
 {
-    esp_log_level_set("esp-x509-crt-bundle", ESP_LOG_WARN);
-    esp_log_level_set("pm", ESP_LOG_DEBUG);
-    esp_log_level_set("wifi", ESP_LOG_WARN);
-
-    ESP_LOGI(TAG, "Initializing NVS...");
-    NvsStorage::InitNvsPartition("nvs");
-    NvsStorage::PrintStats("nvs");
-
-    ESP_LOGI(TAG, "Initializing FAT...");
-    FatfsDriver fatFsDriver{"/fat", "fat"};
-    fatFsDriver.Init();
-
-    ESP_LOGI(TAG, "Starting managers...");
-    appContext.Init();
-
-    ESP_LOGI(TAG, "Initialization complete. Deleting main task...");
-    vTaskDelete(nullptr);  // Delete this startup task
+    ESP_LOGI(TAG, "Starting up...");
+    g_appContext.getLogManager().Init();
+    g_appContext.getSettingsManager().Init();
+    g_appContext.getNetworkManager().Init();
+    g_appContext.getCommandManager().Init();
+    g_appContext.getUpdateManager().Init();
+    g_appContext.getWebServerManager().Init();
 }

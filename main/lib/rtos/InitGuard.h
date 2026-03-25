@@ -1,13 +1,13 @@
 #pragma once
+#include <assert.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
+#include "InitState.h"  // For the macro's
 
-#define REQUIRE_READY_MAX_WAIT  pdMS_TO_TICKS(10000)
 
-#define REQUIRE_READY(obj) \
-    assert((obj).WaitForReady(REQUIRE_READY_MAX_WAIT) && "Initialization wait failed")
 
-class InitGuard {
+class [[deprecated("InitGuard is legacy. Use InitState (TryBeginInit/InitAttempt) instead.")]] InitGuard
+{
 public:
 
     InitGuard(const InitGuard&) = delete;
@@ -33,7 +33,7 @@ public:
     void SetNotReady() {
         xEventGroupClearBits(_group, READY_BIT);
     }
-    
+
     bool WaitForReady(TickType_t timeout) const {
         return (xEventGroupWaitBits(_group, READY_BIT, false, true, timeout) & READY_BIT) != 0;
     }

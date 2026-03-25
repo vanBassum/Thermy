@@ -9,4 +9,3 @@ public:
 	virtual bool Take(TickType_t timeout = portMAX_DELAY) const = 0;
 	virtual bool Give() const = 0;
 };
-
