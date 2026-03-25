@@ -97,7 +97,24 @@ void WifiPage::RunScan()
 void WifiPage::SelectNetwork(const char *ssid)
 {
     settingsManager.setString("wifi.ssid", ssid);
-    RunScan(); // refresh highlight
+
+    // Update row highlights without rescanning
+    uint32_t count = lv_obj_get_child_cnt(listArea);
+    for (uint32_t i = 0; i < count; i++)
+    {
+        lv_obj_t *row = lv_obj_get_child(listArea, i);
+        if (!lv_obj_check_type(row, &lv_btn_class))
+            continue;
+
+        lv_obj_t *lbl = lv_obj_get_child(row, 0);
+        if (!lbl)
+            continue;
+
+        const char *text = lv_label_get_text(lbl);
+        bool match = strstr(text, ssid) != nullptr;
+        lv_obj_set_style_bg_color(row, match ? lv_palette_main(LV_PALETTE_BLUE)
+                                             : lv_color_hex(0x2a2a2a), LV_PART_MAIN);
+    }
 }
 
 void WifiPage::ScanCb(lv_event_t *e)
