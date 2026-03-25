@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "esp_log.h"
+#include "esp_ota_ops.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ApplicationContext.h"
@@ -21,4 +22,8 @@ extern "C" void app_main(void)
     g_appContext.getCommandManager().Init();
     g_appContext.getUpdateManager().Init();
     g_appContext.getWebServerManager().Init();
+
+    // Mark firmware as valid so the bootloader doesn't roll back on next reboot
+    esp_ota_mark_app_valid_cancel_rollback();
+    ESP_LOGI(TAG, "All managers initialized, firmware confirmed valid");
 }

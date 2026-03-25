@@ -14,6 +14,9 @@ CONFIG_SPIRAM_USE_CAPS_ALLOC=y
 # HTTP server WebSocket support
 CONFIG_HTTPD_WS_SUPPORT=y
 
+# OTA rollback support
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
 # Increase timer task stack (default 2048 too small for WiFi calls in timer callbacks)
 CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=4096
 
