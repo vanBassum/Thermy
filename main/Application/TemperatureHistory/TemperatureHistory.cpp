@@ -2,7 +2,9 @@
 #include "SensorManager/SensorManager.h"
 #include "SettingsManager/SettingsManager.h"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 #include <algorithm>
+#include <cassert>
 
 TemperatureHistory::TemperatureHistory(ServiceProvider &ctx)
     : sensorManager(ctx.getSensorManager())
@@ -15,6 +17,20 @@ void TemperatureHistory::Init()
     auto init = initState.TryBeginInit();
     if (!init)
         return;
+
+    // Allocate buffer in PSRAM (falls back to internal RAM if no PSRAM)
+    buffer = static_cast<TemperatureSample *>(
+        heap_caps_calloc(MAX_SAMPLES, sizeof(TemperatureSample), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (!buffer)
+    {
+        ESP_LOGW(TAG, "PSRAM alloc failed, falling back to internal RAM");
+        buffer = static_cast<TemperatureSample *>(calloc(MAX_SAMPLES, sizeof(TemperatureSample)));
+    }
+    assert(buffer && "Failed to allocate temperature history buffer");
+
+    ESP_LOGI(TAG, "Buffer allocated: %d samples (%d KB) in %s",
+             MAX_SAMPLES, (MAX_SAMPLES * sizeof(TemperatureSample)) / 1024,
+             heap_caps_get_free_size(MALLOC_CAP_SPIRAM) > 0 ? "PSRAM" : "internal");
 
     int32_t rateSec = settingsManager.getInt("history.rate", DEFAULT_RATE_SECONDS);
     if (rateSec < 1)

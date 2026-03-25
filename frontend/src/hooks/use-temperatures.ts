@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { backend, type SensorReading, type HistorySample } from "@/lib/backend"
 
-export const MAX_SAMPLES = 1024
+export const MAX_SAMPLES = 8192
 
 export interface ChartPoint {
   time: string

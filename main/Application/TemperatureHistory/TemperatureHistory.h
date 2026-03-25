@@ -20,7 +20,7 @@ class TemperatureHistory
     inline static constexpr const char *TAG = "TempHistory";
 
 public:
-    static constexpr size_t MAX_SAMPLES = 1024;
+    static constexpr size_t MAX_SAMPLES = 8192;
     static constexpr int32_t DEFAULT_RATE_SECONDS = 10;
 
     explicit TemperatureHistory(ServiceProvider &ctx);
@@ -44,7 +44,7 @@ private:
     Mutex mutex;
     Timer sampleTimer;
 
-    TemperatureSample buffer[MAX_SAMPLES];
+    TemperatureSample *buffer = nullptr;
     size_t head = 0;
     size_t count = 0;
 
