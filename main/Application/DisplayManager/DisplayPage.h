@@ -140,6 +140,12 @@ protected:
         return ta;
     }
 
+    void HideKeyboard()
+    {
+        if (keyboard)
+            lv_obj_add_flag(keyboard, LV_OBJ_FLAG_HIDDEN);
+    }
+
     void ShowKeyboard(lv_obj_t *textarea)
     {
         if (!keyboard)
@@ -150,6 +156,12 @@ protected:
             lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x1a1a1a), LV_PART_MAIN);
             lv_obj_set_style_text_color(keyboard, lv_color_white(), LV_PART_ITEMS);
             lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x333333), LV_PART_ITEMS);
+
+            // Hide keyboard when OK/Enter is pressed
+            lv_obj_add_event_cb(keyboard, [](lv_event_t *e) {
+                auto *page = static_cast<DisplayPage *>(lv_event_get_user_data(e));
+                page->HideKeyboard();
+            }, LV_EVENT_READY, this);
         }
         lv_keyboard_set_textarea(keyboard, textarea);
         lv_obj_clear_flag(keyboard, LV_OBJ_FLAG_HIDDEN);

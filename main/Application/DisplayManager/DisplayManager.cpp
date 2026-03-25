@@ -16,6 +16,7 @@ DisplayManager::DisplayManager(ServiceProvider &ctx)
     , homePage(ctx.getNetworkManager(), ctx.getSensorManager(), ctx.getSettingsManager())
     , wifiPage(ctx.getSettingsManager(), ctx.getNetworkManager())
     , sensorPage(ctx.getSettingsManager(), ctx.getSensorManager())
+    , graphPage(ctx.getSettingsManager())
     , systemPage(ctx.getSettingsManager())
 {
     auto nav = [this](const char *page) { NavigateTo(page); };
@@ -23,6 +24,7 @@ DisplayManager::DisplayManager(ServiceProvider &ctx)
     settingsMenuPage.SetNavigator(nav);
     wifiPage.SetNavigator(nav);
     sensorPage.SetNavigator(nav);
+    graphPage.SetNavigator(nav);
     systemPage.SetNavigator(nav);
 }
 
@@ -113,6 +115,8 @@ void DisplayManager::NavigateTo(const char *page)
         activePage = &wifiPage;
     else if (strcmp(page, "sensors") == 0)
         activePage = &sensorPage;
+    else if (strcmp(page, "graph") == 0)
+        activePage = &graphPage;
     else if (strcmp(page, "system") == 0)
         activePage = &systemPage;
     else

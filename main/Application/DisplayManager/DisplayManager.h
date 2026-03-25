@@ -9,6 +9,7 @@
 #include "SettingsMenuPage.h"
 #include "WifiPage.h"
 #include "SensorPage.h"
+#include "GraphPage.h"
 #include "SystemPage.h"
 
 class DisplayManager
@@ -34,6 +35,7 @@ private:
     SettingsMenuPage settingsMenuPage;
     WifiPage wifiPage;
     SensorPage sensorPage;
+    GraphPage graphPage;
     SystemPage systemPage;
     DisplayPage *activePage = nullptr;
 

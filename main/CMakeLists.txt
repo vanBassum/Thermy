@@ -17,6 +17,7 @@ set(SOURCE_FILES_LIST
     "Application/DisplayManager/SettingsMenuPage.cpp"
     "Application/DisplayManager/WifiPage.cpp"
     "Application/DisplayManager/SensorPage.cpp"
+    "Application/DisplayManager/GraphPage.cpp"
     "Application/DisplayManager/SystemPage.cpp"
     "hardware/display/Display_WT32SC01.cpp"
     "Application/SensorManager/SensorManager.cpp"
