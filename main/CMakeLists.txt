@@ -70,6 +70,7 @@ set(COMPONENT_REQUIRES
     lvgl
     esp_lcd_touch
     mdns
+    json
 )
 
 # Register component with ESP-IDF

@@ -5,6 +5,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
+#include "cJSON.h"
 
 // ──────────────────────────────────────────────────────────────
 // Fixed-capacity buffer for building JSON responses (no heap)
@@ -52,36 +53,34 @@ struct FixBuf {
 
 inline bool ExtractJsonString(const char* json, const char* field, char* out, size_t outSize)
 {
-    char pattern[32];
-    snprintf(pattern, sizeof(pattern), "\"%s\"", field);
-    const char* pos = strstr(json, pattern);
-    if (!pos) return false;
-    pos = strchr(pos + strlen(pattern), ':');
-    if (!pos) return false;
-    pos++;
-    while (*pos == ' ' || *pos == '\t') pos++;
-    if (*pos != '"') return false;
-    pos++;
-    size_t i = 0;
-    while (*pos && *pos != '"' && i < outSize - 1)
+    cJSON* root = cJSON_Parse(json);
+    if (!root) return false;
+
+    bool found = false;
+    cJSON* item = cJSON_GetObjectItemCaseSensitive(root, field);
+    if (cJSON_IsString(item) && item->valuestring)
     {
-        if (*pos == '\\' && *(pos + 1)) pos++;
-        out[i++] = *pos++;
+        strncpy(out, item->valuestring, outSize - 1);
+        out[outSize - 1] = '\0';
+        found = true;
     }
-    out[i] = '\0';
-    return true;
+
+    cJSON_Delete(root);
+    return found;
 }
 
 inline int32_t ExtractJsonInt(const char* json, const char* field, int32_t defaultVal = 0)
 {
-    char pattern[32];
-    snprintf(pattern, sizeof(pattern), "\"%s\"", field);
-    const char* pos = strstr(json, pattern);
-    if (!pos) return defaultVal;
-    pos = strchr(pos + strlen(pattern), ':');
-    if (!pos) return defaultVal;
-    pos++;
-    while (*pos == ' ' || *pos == '\t') pos++;
-    if (*pos == 'n') return defaultVal; // null
-    return static_cast<int32_t>(atoi(pos));
+    cJSON* root = cJSON_Parse(json);
+    if (!root) return defaultVal;
+
+    int32_t result = defaultVal;
+    cJSON* item = cJSON_GetObjectItemCaseSensitive(root, field);
+    if (cJSON_IsNumber(item))
+    {
+        result = static_cast<int32_t>(item->valuedouble);
+    }
+
+    cJSON_Delete(root);
+    return result;
 }
