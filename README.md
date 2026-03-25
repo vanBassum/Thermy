@@ -1,134 +1,110 @@
-# Skeleton
+# Thermy
 
-A clean starting point for ESP32 projects with a modern web interface. Clone it, rename it, and start building — the plumbing is already done.
-
-Skeleton gives you WiFi management, OTA updates, a live log console, persistent settings, and a responsive web UI out of the box. It's designed for homebrew projects where you want to skip the boilerplate and get straight to the interesting part.
+A smart temperature monitor built on the ESP32 with a touchscreen display and web interface. Track up to 4 DS18B20 temperature sensors in real time, view historical trends, and manage everything from the device itself or any browser on your network.
 
 <img width="1096" height="591" alt="image" src="https://github.com/user-attachments/assets/cc282e06-f84b-497d-8e5a-3e04add95bac" />
 
-## What's Included
+## Features
 
-- **WiFi** — Station mode with automatic AP fallback (`Skeleton-AP`) after failed connections
-- **Web UI** — React + TypeScript dashboard served from flash, accessible from any browser
-- **OTA Updates** — Dual-partition firmware updates and independent web UI updates, no USB required after initial flash
-- **Live Console** — Stream device logs to the browser in real time over WebSocket
-- **Settings** — Key/value store backed by NVS with a dynamic settings page in the UI
-- **Modular Architecture** — Service provider pattern with isolated managers, easy to extend
+- **4-Channel Temperature Monitoring** — Connect up to 4 DS18B20 sensors via OneWire. Each sensor is color-coded (red, blue, green, yellow) for easy identification.
+- **Touchscreen Display** — 480x320 capacitive touchscreen showing live readings and a scrolling temperature graph. Configure everything directly on the device.
+- **Web Dashboard** — Access a full-featured web UI from any browser on your network. View sensor cards, interactive charts, device info, and live logs.
+- **Historical Graphs** — Stores up to 8192 samples per sensor in memory. At the default 10-second sample rate that's roughly 22 hours of history. Adjust the rate to store more.
+- **Auto Sensor Discovery** — New sensors are detected automatically. A popup lets you assign each sensor to one of the 4 slots.
+- **WiFi with AP Fallback** — Connects to your home network. If it can't connect, it creates its own access point (`Thermy-AP`) so you're never locked out.
+- **Over-the-Air Updates** — After the initial USB flash, update firmware and the web UI wirelessly from the browser.
+- **NTP Time Sync** — Automatic clock sync with configurable timezone support.
 
-## Tech Stack
+## Hardware
 
-| Layer | Stack |
-|-------|-------|
-| Firmware | C++, ESP-IDF v6.0, FreeRTOS |
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS, shadcn/ui |
-| Target | ESP32 (4 MB flash) |
-| CI/CD | GitHub Actions — builds firmware + frontend, publishes releases |
+| Component | Details |
+|-----------|---------|
+| Board | WT32-SC01 (ESP32 with 480x320 touchscreen) |
+| Sensors | DS18B20 digital temperature sensors (1-4) on GPIO 4 |
+| Flash | 16 MB (firmware + web UI + settings) |
+| Connectivity | WiFi 802.11 b/g/n |
 
-## Key Directories
-
-- **`main/`** — ESP-IDF firmware. Application managers live in `Application/`, reusable utilities in `lib/`. This is where your device logic goes.
-- **`frontend/`** — React web UI. Built with Vite, outputs to `www/`. This is a standard Node project — `pnpm install && pnpm dev` to work on it.
-- **`www/`** — Build output from the frontend, gzipped and embedded into a FAT partition on flash at build time. Don't edit files here directly.
+Wire your DS18B20 sensors to GPIO 4 with a 4.7k pull-up resistor. The device handles the rest.
 
 ## Getting Started
 
-### Prerequisites
+### Initial Flash
 
-- [ESP-IDF v6.0+](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/)
-- [Node.js 22+](https://nodejs.org/) and [pnpm](https://pnpm.io/)
+You need a USB connection for the first flash only. After that, updates go over WiFi.
 
-Or use the included dev container (requires Docker + VS Code with the Dev Containers extension).
-
-### Build & Flash
-
+**Option A — Pre-built release:**
+Download `Thermy-factory.bin` from the [Releases](../../releases) page and flash it:
 ```bash
-# Build the frontend
-cd frontend
-pnpm install
-pnpm build
-cd ..
+esptool.py --port /dev/ttyUSB0 write_flash 0x0 Thermy-factory.bin
+```
 
-# Build and flash the firmware
+**Option B — Build from source:**
+Requires [ESP-IDF v6.0+](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/) and [Node.js 22+](https://nodejs.org/) with [pnpm](https://pnpm.io/).
+```bash
+cd frontend && pnpm install && pnpm build && cd ..
 idf.py set-target esp32
 idf.py build
 idf.py -p /dev/ttyUSB0 flash monitor
 ```
 
-The frontend is compiled, gzipped, and embedded into a FAT partition on flash. No SD card or external storage needed.
+### First Boot
 
-### Development
+1. Thermy starts in access point mode, broadcasting **Thermy-AP** (open network)
+2. Connect to Thermy-AP from your phone or computer
+3. Open the web UI at the device's IP address
+4. Go to **Settings**, enter your WiFi credentials, and save
+5. Thermy reboots and connects to your network
 
-For frontend development with hot reload against a running device:
+## Using the Touchscreen
 
-```bash
-cd frontend
-pnpm dev
-```
+The home screen shows the current time, IP address, live temperature readings for all 4 slots, and a scrolling line chart.
 
-Vite's dev server will proxy WebSocket connections to the device. Edit React components and see changes instantly.
+Tap the **gear icon** to access settings:
 
-## Architecture
+- **WiFi** — Scan for networks, select one, enter the password
+- **Sensors & Timing** — Adjust how often the bus is scanned and temperatures are read. Clear sensor assignments to start fresh.
+- **Graph** — Set the sample rate and Y-axis range. The display shows how long the current settings will store.
+- **System** — Change the device name, NTP server, and timezone
 
-All managers follow the same pattern: they receive a `ServiceProvider&` reference at construction and initialize via `Init()`. This gives you dependency injection without a framework.
+All settings changes require tapping **Save & Reboot** to take effect.
 
-```
-ApplicationContext (owns everything)
-├── LogManager          — Captures ESP-IDF logs, broadcasts via WebSocket
-├── SettingsManager     — NVS read/write with typed accessors
-├── NetworkManager      — WiFi STA/AP with retry and fallback
-│   └── WiFiInterface   — ESP WiFi abstraction (swappable for Ethernet)
-├── CommandManager      — Routes JSON commands to handlers
-├── UpdateManager       — OTA writes to app or www partition
-└── WebServerManager    — HTTP + WebSocket server, static file serving
-    ├── StaticFileHandler
-    └── WebSocketHandler
-```
+### Assigning Sensors
 
-### Adding a New Manager
+When a new DS18B20 sensor is detected on the bus, a popup appears on the touchscreen. Tap one of the 4 colored slots to assign it. The assignment is saved and persists across reboots.
 
-1. Create a new directory under `main/Application/YourManager/`
-2. Implement your manager class, accepting `ServiceProvider&` in the constructor
-3. Add it to `ServiceProvider.h` (forward declare + virtual getter)
-4. Add it to `ApplicationContext.h` (member + getter implementation)
-5. Call `Init()` from `main.cpp`
-6. Register source files in `main/CMakeLists.txt`
+## Using the Web Interface
 
-### Adding a New Command
+Once connected to WiFi, open Thermy's IP address in any browser. The web UI provides:
 
-Commands are dispatched by `CommandManager`. Add an entry to the command table with a type string and handler function. The handler receives a JSON payload and writes its response to a `JsonWriter`. The frontend can call it via the WebSocket RPC layer in `backend.ts`.
+| Page | What it does |
+|------|-------------|
+| **Dashboard** | Firmware version, chip info, memory usage |
+| **Temperature** | Live sensor cards and an interactive historical chart |
+| **Console** | Real-time device log stream |
+| **Settings** | View and edit all device settings |
+| **Firmware** | Upload new firmware or web UI updates over the air |
 
-## OTA Updates
+## Updating Over the Air
 
-After initial USB flash, the device can be updated entirely over the web UI:
+After the initial USB flash, you never need a cable again. From the web UI's **Firmware** page:
 
-- **Firmware > Application Firmware** — Writes to the inactive OTA slot, then reboots into it
-- **Firmware > WWW Partition** — Updates the web UI independently of firmware
+- **Application Firmware** — Upload `Thermy-app.bin` to update the device firmware
+- **WWW Partition** — Upload `Thermy-www.bin` to update just the web interface
 
-The CI pipeline produces three artifacts per release:
+The device uses dual partitions for safe updates — if something goes wrong, the previous firmware is still available.
 
-| File | Purpose |
-|------|---------|
-| `Skeleton-factory.bin` | Full image (bootloader + partitions + app + www) for initial flash via USB |
-| `Skeleton-app.bin` | Firmware only, for OTA update via web UI |
-| `Skeleton-www.bin` | Web UI only, for updating the frontend independently |
+## Settings Reference
 
-## WiFi Behavior
-
-1. On boot, attempts to connect to the configured WiFi network (stored in NVS)
-2. Retries up to 3 times on failure
-3. Falls back to an open access point (`Skeleton-AP`) if all retries fail
-4. Connect to the AP and access the web UI at the device's IP to configure WiFi credentials
-
-## Making It Yours
-
-This is a skeleton — rename it and build on top of it:
-
-1. **Rename the project** in `CMakeLists.txt` and `.github/workflows/release.yml`
-2. **Add your hardware drivers** under `main/lib/` or as ESP-IDF components
-3. **Add your application logic** as a new manager (see [Adding a New Manager](#adding-a-new-manager))
-4. **Extend the web UI** — add pages in `frontend/src/pages/`, register routes in the sidebar
-5. **Add commands** for your features so the frontend can interact with them
-6. **Customize settings** by adding entries to the settings definition table in `SettingsManager`
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Device name | Thermy | Name shown in the UI |
+| WiFi SSID / Password | — | Your WiFi network credentials |
+| NTP server | pool.ntp.org | Time synchronization server |
+| Timezone | CET-1CEST,M3.5.0,M10.5.0/3 | POSIX timezone string |
+| Sample rate | 10 seconds | How often a data point is stored to the history graph |
+| Graph Y-axis min/max | 0 / 100 | Temperature range for the graph display |
+| Bus scan interval | 5000 ms | How often to scan for new sensors |
+| Temperature read interval | 1000 ms | How often to read sensor values |
 
 ## License
 
