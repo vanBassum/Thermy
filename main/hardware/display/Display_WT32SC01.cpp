@@ -150,6 +150,7 @@ void Display_WT32SC01::LvglTouchCb(lv_indev_drv_t *drv, lv_indev_data_t *data)
         data->point.x = x;
         data->point.y = y;
         data->state = LV_INDEV_STATE_PRESSED;
+        ESP_LOGD(TAG, "Touch: x=%d y=%d", x, y);
     } else {
         data->state = LV_INDEV_STATE_RELEASED;
     }
