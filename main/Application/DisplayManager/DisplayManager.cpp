@@ -93,23 +93,6 @@ void DisplayManager::UiSetup()
     lv_label_set_text(labelIP, "No IP");
     lv_obj_align(labelIP, LV_ALIGN_TOP_RIGHT, -50, 8);
 
-    // Gear button (top-right)
-    lv_obj_t *gearBtn = lv_btn_create(lv_scr_act());
-    lv_obj_set_size(gearBtn, 40, 36);
-    lv_obj_align(gearBtn, LV_ALIGN_TOP_RIGHT, -2, 0);
-    lv_obj_set_style_bg_color(gearBtn, lv_color_hex(0x303030), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(gearBtn, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_shadow_width(gearBtn, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_width(gearBtn, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(gearBtn, 6, LV_PART_MAIN);
-
-    lv_obj_t *gearIcon = lv_label_create(gearBtn);
-    lv_label_set_text(gearIcon, LV_SYMBOL_SETTINGS);
-    lv_obj_set_style_text_color(gearIcon, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_text_font(gearIcon, &lv_font_montserrat_20, LV_PART_MAIN);
-    lv_obj_center(gearIcon);
-    lv_obj_add_event_cb(gearBtn, GearBtnCb, LV_EVENT_CLICKED, this);
-
     // --- Temperature boxes ---
     static const lv_coord_t startY = 40;
     static const lv_coord_t startX = 10;
@@ -165,6 +148,23 @@ void DisplayManager::UiSetup()
 
     for (int i = 0; i < 4; i++)
         chartSeries[i] = lv_chart_add_series(chart, channelColors[i], LV_CHART_AXIS_PRIMARY_Y);
+
+    // Gear button (created last so it's on top of all other objects)
+    lv_obj_t *gearBtn = lv_btn_create(lv_scr_act());
+    lv_obj_set_size(gearBtn, 40, 36);
+    lv_obj_align(gearBtn, LV_ALIGN_TOP_RIGHT, -2, 0);
+    lv_obj_set_style_bg_color(gearBtn, lv_color_hex(0x303030), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(gearBtn, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(gearBtn, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(gearBtn, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(gearBtn, 6, LV_PART_MAIN);
+
+    lv_obj_t *gearIcon = lv_label_create(gearBtn);
+    lv_label_set_text(gearIcon, LV_SYMBOL_SETTINGS);
+    lv_obj_set_style_text_color(gearIcon, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_font(gearIcon, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_center(gearIcon);
+    lv_obj_add_event_cb(gearBtn, GearBtnCb, LV_EVENT_CLICKED, this);
 }
 
 void DisplayManager::UiUpdate()
