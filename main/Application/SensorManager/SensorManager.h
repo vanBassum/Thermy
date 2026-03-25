@@ -64,4 +64,5 @@ private:
 
     uint64_t pendingAddresses[MAX_SENSORS]{};
     int pendingCount = 0;
+    bool rescanRequested = false;
 };

@@ -98,9 +98,9 @@ void SensorManager::AssignPendingToSlot(int slot)
     settingsManager.setString(GetSlotKey(slot), hexBuf);
     settingsManager.Save();
 
-    // Update slot
+    // Update slot and trigger rescan
     slots[slot].configuredAddress = address;
-    // Handle will be assigned on next scan
+    rescanRequested = true;
 
     ESP_LOGI(TAG, "Assigned sensor %016" PRIX64 " to slot %d", address, slot);
 
@@ -141,9 +141,11 @@ void SensorManager::Work()
             lastTemperatureRead = now;
         }
 
-        if (IsElapsed(now, lastBusScan, BUS_SCAN_INTERVAL) || (!success))
+        if (IsElapsed(now, lastBusScan, BUS_SCAN_INTERVAL) || (!success) || rescanRequested)
         {
+            rescanRequested = false;
             ScanBus();
+            TriggerTemperatureConversions();
             lastBusScan = now;
         }
 
