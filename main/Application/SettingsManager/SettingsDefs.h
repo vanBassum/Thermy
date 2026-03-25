@@ -12,7 +12,7 @@ inline const SettingDef SETTINGS_DEFS[] = {
     { "wifi.password", SettingType::String, "WiFi Password", "" },
 
     // Device
-    { "device.name",   SettingType::String, "Device Name",   "Skeleton" },
+    { "device.name",   SettingType::String, "Device Name",   "Thermy" },
 
     // Sensor timing (milliseconds)
     { "sensor.scan",   SettingType::Int, "Bus Scan Interval (ms)",  "5000" },

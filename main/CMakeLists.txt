@@ -58,6 +58,7 @@ set(COMPONENT_REQUIRES
     esp_lcd
     lvgl
     esp_lcd_touch
+    mdns
 )
 
 # Register component with ESP-IDF

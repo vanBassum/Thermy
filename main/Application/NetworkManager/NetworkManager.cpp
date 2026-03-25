@@ -3,6 +3,7 @@
 #include "nvs_flash.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
+#include "mdns.h"
 
 NetworkManager::NetworkManager(ServiceProvider& serviceProvider)
     : serviceProvider_(serviceProvider)
@@ -33,6 +34,12 @@ void NetworkManager::Init()
     {
         ESP_ERROR_CHECK(err);
     }
+
+    // mDNS — thermy.local
+    ESP_ERROR_CHECK(mdns_init());
+    mdns_hostname_set("thermy");
+    mdns_instance_name_set("Thermy");
+    mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
 
     // Reduce noisy WiFi/LWIP init logs
     esp_log_level_set("wifi", ESP_LOG_WARN);
