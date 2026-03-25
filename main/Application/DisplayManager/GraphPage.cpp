@@ -11,7 +11,7 @@ void GraphPage::OnCreate()
     char buf[16];
 
     snprintf(buf, sizeof(buf), "%ld", settingsManager.getInt("history.rate", 10));
-    lv_obj_t *rateTa = AddTextRow("Sample (s)", buf, 50, 6);
+    AddTextRow("Sample (s)", buf, 50, 6);
 
     // Duration hint
     int32_t rate = settingsManager.getInt("history.rate", 10);
