@@ -20,6 +20,7 @@ void TimeManager::Init()
     instance = this;
 
     ApplyTimezone();
+    LoadServerName();
     StartSntp();
 
     init.SetReady();
@@ -45,17 +46,18 @@ void TimeManager::ApplyTimezone()
     }
 }
 
+void TimeManager::LoadServerName()
+{
+    if (!settingsManager.getString("ntp.server", ntpServer, sizeof(ntpServer)) || ntpServer[0] == '\0')
+        snprintf(ntpServer, sizeof(ntpServer), "pool.ntp.org");
+}
+
 void TimeManager::StartSntp()
 {
-    char server[64] = {};
-    settingsManager.getString("ntp.server", server, sizeof(server));
+    ESP_LOGI(TAG, "Starting SNTP with server: %s", ntpServer);
 
-    if (server[0] == '\0')
-        snprintf(server, sizeof(server), "pool.ntp.org");
-
-    ESP_LOGI(TAG, "Starting SNTP with server: %s", server);
-
-    esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(server);
+    // ntpServer is a member — pointer stays valid for the lifetime of the object
+    esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(ntpServer);
     config.sync_cb = TimeSyncCallback;
     config.start = true;
     ESP_ERROR_CHECK(esp_netif_sntp_init(&config));

@@ -22,8 +22,10 @@ private:
     InitState initState;
 
     volatile bool synced = false;
+    char ntpServer[64] = {};
 
     void ApplyTimezone();
+    void LoadServerName();
     void StartSntp();
 
     static void TimeSyncCallback(struct timeval *tv);
