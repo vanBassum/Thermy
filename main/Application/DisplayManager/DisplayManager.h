@@ -2,6 +2,7 @@
 #include "ServiceProvider.h"
 #include "rtos.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "Display_WT32SC01.h"
 #include "lvgl.h"
 
@@ -28,7 +29,7 @@ private:
     InitState initState;
     Display_WT32SC01 display;
     Task task;
-    Timer timer;
+    esp_timer_handle_t lvglTickTimer = nullptr;
 
     // Pages
     HomePage homePage;
@@ -45,7 +46,7 @@ private:
     TickType_t popupShownAt = 0;
 
     void Work();
-    void LvglTickCb(void *arg);
+    static void LvglTickCb(void *arg);
     void NavigateTo(const char *page);
 
     // Popup

@@ -39,9 +39,15 @@ void DisplayManager::Init()
     lv_init();
     display.Init();
 
-    timer.Init("LvglTickTimer", pdMS_TO_TICKS(5), true);
-    timer.SetHandler([this]() { LvglTickCb(this); });
-    timer.Start();
+    const esp_timer_create_args_t tickTimerArgs = {
+        .callback = LvglTickCb,
+        .arg = nullptr,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "LvglTick",
+        .skip_unhandled_events = true,
+    };
+    ESP_ERROR_CHECK(esp_timer_create(&tickTimerArgs, &lvglTickTimer));
+    ESP_ERROR_CHECK(esp_timer_start_periodic(lvglTickTimer, 5000));
 
     task.Init("DisplayTask", 5, 4096);
     task.SetHandler([this]() { Work(); });
