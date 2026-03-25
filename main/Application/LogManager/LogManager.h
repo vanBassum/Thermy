@@ -34,8 +34,8 @@ private:
     ServiceProvider& serviceProvider_;
     InitState initState_;
 
-    // Ring buffer for log lines
-    char lines_[MAX_LINES][MAX_LINE_LEN] = {};
+    // Ring buffer for log lines (allocated in PSRAM during Init)
+    char (*lines_)[MAX_LINE_LEN] = nullptr;
     int32_t head_ = 0;
     int32_t count_ = 0;
     mutable Mutex mutex_;

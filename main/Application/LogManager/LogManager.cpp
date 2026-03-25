@@ -2,8 +2,10 @@
 #include "JsonWriter.h"
 #include "BufferStream.h"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 #include <cstdio>
 #include <cstring>
+#include <cassert>
 
 LogManager* LogManager::s_instance_ = nullptr;
 
@@ -25,6 +27,13 @@ void LogManager::Init()
     }
 
     s_instance_ = this;
+
+    // Allocate log ring buffer in PSRAM (40KB)
+    lines_ = static_cast<char (*)[MAX_LINE_LEN]>(
+        heap_caps_calloc(MAX_LINES, MAX_LINE_LEN, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (!lines_)
+        lines_ = static_cast<char (*)[MAX_LINE_LEN]>(calloc(MAX_LINES, MAX_LINE_LEN));
+    assert(lines_ && "Failed to allocate log buffer");
 
     queue_ = xQueueCreate(QUEUE_DEPTH, sizeof(LogQueueItem));
 
