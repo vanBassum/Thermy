@@ -152,17 +152,20 @@ void SensorManager::Work()
 
     while (1)
     {
+        TickType_t scanInterval = pdMS_TO_TICKS(settingsManager.getInt("sensor.scan", DEFAULT_SCAN_INTERVAL_MS));
+        TickType_t readInterval = pdMS_TO_TICKS(settingsManager.getInt("sensor.read", DEFAULT_READ_INTERVAL_MS));
+
         TickType_t now = xTaskGetTickCount();
         bool success = true;
 
-        if (IsElapsed(now, lastTemperatureRead, TEMPERATURE_READ_INTERVAL))
+        if (IsElapsed(now, lastTemperatureRead, readInterval))
         {
             success &= ReadTemperatures();
             success &= TriggerTemperatureConversions();
             lastTemperatureRead = now;
         }
 
-        if (IsElapsed(now, lastBusScan, BUS_SCAN_INTERVAL) || (!success) || rescanRequested)
+        if (IsElapsed(now, lastBusScan, scanInterval) || (!success) || rescanRequested)
         {
             rescanRequested = false;
             ScanBus();
@@ -170,8 +173,8 @@ void SensorManager::Work()
             lastBusScan = now;
         }
 
-        TickType_t busScanSleep = GetSleepTime(now, lastBusScan, BUS_SCAN_INTERVAL);
-        TickType_t tempReadSleep = GetSleepTime(now, lastTemperatureRead, TEMPERATURE_READ_INTERVAL);
+        TickType_t busScanSleep = GetSleepTime(now, lastBusScan, scanInterval);
+        TickType_t tempReadSleep = GetSleepTime(now, lastTemperatureRead, readInterval);
         TickType_t sleepTime = std::min(busScanSleep, tempReadSleep);
         vTaskDelay(sleepTime);
     }

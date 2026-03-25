@@ -20,8 +20,8 @@ class SensorManager
 {
     inline static constexpr const char *TAG = "SensorManager";
     static constexpr size_t MAX_SENSORS = 4;
-    static constexpr TickType_t BUS_SCAN_INTERVAL         = pdMS_TO_TICKS(5000); // 5 seconds
-    static constexpr TickType_t TEMPERATURE_READ_INTERVAL  = pdMS_TO_TICKS(1000);
+    static constexpr int32_t DEFAULT_SCAN_INTERVAL_MS = 5000;
+    static constexpr int32_t DEFAULT_READ_INTERVAL_MS = 1000;
 
 public:
     explicit SensorManager(ServiceProvider &ctx);
