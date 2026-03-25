@@ -6,6 +6,7 @@
 #include "lvgl.h"
 #include "NetworkManager/NetworkManager.h"
 #include "SensorManager/SensorManager.h"
+#include "SettingsManager/SettingsManager.h"
 
 class DisplayManager
 {
@@ -22,6 +23,7 @@ public:
 private:
     NetworkManager &networkManager;
     SensorManager &sensorManager;
+    SettingsManager &settingsManager;
 
     InitState initState;
     Display_WT32SC01 display;
@@ -42,16 +44,31 @@ private:
     uint64_t popupSensorAddress = 0;
     TickType_t popupShownAt = 0;
 
+    // Settings screen
+    lv_obj_t *settingsPanel = nullptr;
+    lv_obj_t *ssidTextarea = nullptr;
+    lv_obj_t *passwordTextarea = nullptr;
+    lv_obj_t *keyboard = nullptr;
+
     void Work();
     void LvglTickCb(void *arg);
 
     void UiSetup();
     void UiUpdate();
 
+    // Assignment popup
     void ShowAssignPopup(uint64_t address);
     void CloseAssignPopup();
     void OnSlotSelected(int slot);
     void AutoAssignToFirstEmpty();
-
     static void PopupEventCb(lv_event_t *e);
+
+    // Settings screen
+    void ShowSettings();
+    void CloseSettings();
+    static void GearBtnCb(lv_event_t *e);
+    static void BackBtnCb(lv_event_t *e);
+    static void SaveRebootBtnCb(lv_event_t *e);
+    static void ClearSensorsBtnCb(lv_event_t *e);
+    static void TextareaFocusCb(lv_event_t *e);
 };

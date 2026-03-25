@@ -38,6 +38,7 @@ public:
     uint64_t GetPendingSensorAddress();
     void AssignPendingToSlot(int slot);
     void DismissPendingSensor();
+    void ClearAllSlots();
 
 private:
     SettingsManager &settingsManager;

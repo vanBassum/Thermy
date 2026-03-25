@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cinttypes>
 #include "DateTime.h"
+#include "esp_system.h"
 
 static const lv_color_t channelColors[4] = {
     lv_palette_main(LV_PALETTE_RED),
@@ -13,6 +14,7 @@ static const lv_color_t channelColors[4] = {
 DisplayManager::DisplayManager(ServiceProvider &ctx)
     : networkManager(ctx.getNetworkManager())
     , sensorManager(ctx.getSensorManager())
+    , settingsManager(ctx.getSettingsManager())
 {
 }
 
@@ -86,10 +88,25 @@ void DisplayManager::UiSetup()
     lv_obj_set_style_text_font(labelTime, &lv_font_montserrat_20, LV_PART_MAIN);
 
     labelIP = lv_label_create(lv_scr_act());
-    lv_obj_align(labelIP, LV_ALIGN_TOP_RIGHT, -15, 8);
-    lv_label_set_text(labelIP, "No IP");
     lv_obj_set_style_text_color(labelIP, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(labelIP, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_label_set_text(labelIP, "No IP");
+    lv_obj_align(labelIP, LV_ALIGN_TOP_RIGHT, -50, 8);
+
+    // Gear button (top-right)
+    lv_obj_t *gearBtn = lv_btn_create(lv_scr_act());
+    lv_obj_set_size(gearBtn, 36, 36);
+    lv_obj_align(gearBtn, LV_ALIGN_TOP_RIGHT, -5, 2);
+    lv_obj_set_style_bg_opa(gearBtn, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(gearBtn, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(gearBtn, 0, LV_PART_MAIN);
+
+    lv_obj_t *gearIcon = lv_label_create(gearBtn);
+    lv_label_set_text(gearIcon, LV_SYMBOL_SETTINGS);
+    lv_obj_set_style_text_color(gearIcon, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
+    lv_obj_set_style_text_font(gearIcon, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_center(gearIcon);
+    lv_obj_add_event_cb(gearBtn, GearBtnCb, LV_EVENT_CLICKED, this);
 
     // --- Temperature boxes ---
     static const lv_coord_t startY = 40;
@@ -150,6 +167,10 @@ void DisplayManager::UiSetup()
 
 void DisplayManager::UiUpdate()
 {
+    // Don't update main UI while settings or popup is open
+    if (settingsPanel)
+        return;
+
     char buf[32];
 
     // Update time
@@ -275,7 +296,6 @@ void DisplayManager::ShowAssignPopup(uint64_t address)
         lv_obj_set_style_text_font(label, &lv_font_montserrat_14, LV_PART_MAIN);
         lv_obj_center(label);
 
-        // Store slot index and add click handler
         lv_obj_set_user_data(btn, this);
         lv_obj_add_event_cb(btn, PopupEventCb, LV_EVENT_CLICKED, reinterpret_cast<void *>(i));
     }
@@ -334,5 +354,186 @@ void DisplayManager::PopupEventCb(lv_event_t *e)
     if (self && slot >= 0 && slot < 4)
     {
         self->OnSlotSelected(slot);
+    }
+}
+
+// ── Settings screen ──────────────────────────────────────────
+
+void DisplayManager::ShowSettings()
+{
+    if (settingsPanel)
+        return;
+
+    // Close any open popup first
+    CloseAssignPopup();
+
+    // Full-screen dark panel
+    settingsPanel = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(settingsPanel, LCD_HRES, LCD_VRES);
+    lv_obj_set_pos(settingsPanel, 0, 0);
+    lv_obj_set_style_bg_color(settingsPanel, lv_color_hex(0x101010), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(settingsPanel, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(settingsPanel, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(settingsPanel, 0, LV_PART_MAIN);
+    lv_obj_clear_flag(settingsPanel, LV_OBJ_FLAG_SCROLLABLE);
+
+    // --- Top bar: Back button + title ---
+    lv_obj_t *backBtn = lv_btn_create(settingsPanel);
+    lv_obj_set_size(backBtn, 60, 36);
+    lv_obj_set_pos(backBtn, 10, 8);
+    lv_obj_set_style_bg_color(backBtn, lv_color_hex(0x303030), LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(backBtn, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(backBtn, 6, LV_PART_MAIN);
+
+    lv_obj_t *backLabel = lv_label_create(backBtn);
+    lv_label_set_text(backLabel, LV_SYMBOL_LEFT " Back");
+    lv_obj_set_style_text_color(backLabel, lv_color_white(), LV_PART_MAIN);
+    lv_obj_center(backLabel);
+    lv_obj_add_event_cb(backBtn, BackBtnCb, LV_EVENT_CLICKED, this);
+
+    lv_obj_t *title = lv_label_create(settingsPanel);
+    lv_label_set_text(title, LV_SYMBOL_SETTINGS " Settings");
+    lv_obj_set_style_text_color(title, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 12);
+
+    // --- WiFi SSID ---
+    lv_obj_t *ssidLabel = lv_label_create(settingsPanel);
+    lv_label_set_text(ssidLabel, LV_SYMBOL_WIFI " SSID");
+    lv_obj_set_style_text_color(ssidLabel, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_pos(ssidLabel, 15, 55);
+
+    ssidTextarea = lv_textarea_create(settingsPanel);
+    lv_obj_set_size(ssidTextarea, 300, 36);
+    lv_obj_set_pos(ssidTextarea, 120, 50);
+    lv_textarea_set_one_line(ssidTextarea, true);
+    lv_textarea_set_max_length(ssidTextarea, 32);
+    lv_obj_set_style_bg_color(ssidTextarea, lv_color_hex(0x252525), LV_PART_MAIN);
+    lv_obj_set_style_text_color(ssidTextarea, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_color(ssidTextarea, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
+
+    // Load current SSID
+    char ssidBuf[33] = {};
+    settingsManager.getString("wifi.ssid", ssidBuf, sizeof(ssidBuf));
+    lv_textarea_set_text(ssidTextarea, ssidBuf);
+    lv_obj_add_event_cb(ssidTextarea, TextareaFocusCb, LV_EVENT_FOCUSED, this);
+
+    // --- WiFi Password ---
+    lv_obj_t *passLabel = lv_label_create(settingsPanel);
+    lv_label_set_text(passLabel, LV_SYMBOL_EYE_CLOSE " Pass");
+    lv_obj_set_style_text_color(passLabel, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_pos(passLabel, 15, 97);
+
+    passwordTextarea = lv_textarea_create(settingsPanel);
+    lv_obj_set_size(passwordTextarea, 300, 36);
+    lv_obj_set_pos(passwordTextarea, 120, 92);
+    lv_textarea_set_one_line(passwordTextarea, true);
+    lv_textarea_set_max_length(passwordTextarea, 64);
+    lv_textarea_set_password_mode(passwordTextarea, true);
+    lv_obj_set_style_bg_color(passwordTextarea, lv_color_hex(0x252525), LV_PART_MAIN);
+    lv_obj_set_style_text_color(passwordTextarea, lv_color_white(), LV_PART_MAIN);
+    lv_obj_set_style_border_color(passwordTextarea, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
+
+    // Load current password
+    char passBuf[65] = {};
+    settingsManager.getString("wifi.password", passBuf, sizeof(passBuf));
+    lv_textarea_set_text(passwordTextarea, passBuf);
+    lv_obj_add_event_cb(passwordTextarea, TextareaFocusCb, LV_EVENT_FOCUSED, this);
+
+    // --- Buttons ---
+    // Clear Sensors
+    lv_obj_t *clearBtn = lv_btn_create(settingsPanel);
+    lv_obj_set_size(clearBtn, 150, 40);
+    lv_obj_align(clearBtn, LV_ALIGN_TOP_LEFT, 15, 140);
+    lv_obj_set_style_bg_color(clearBtn, lv_palette_main(LV_PALETTE_DEEP_ORANGE), LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(clearBtn, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(clearBtn, 6, LV_PART_MAIN);
+
+    lv_obj_t *clearLabel = lv_label_create(clearBtn);
+    lv_label_set_text(clearLabel, LV_SYMBOL_TRASH " Clear Sensors");
+    lv_obj_set_style_text_color(clearLabel, lv_color_white(), LV_PART_MAIN);
+    lv_obj_center(clearLabel);
+    lv_obj_add_event_cb(clearBtn, ClearSensorsBtnCb, LV_EVENT_CLICKED, this);
+
+    // Save & Reboot
+    lv_obj_t *saveBtn = lv_btn_create(settingsPanel);
+    lv_obj_set_size(saveBtn, 150, 40);
+    lv_obj_align(saveBtn, LV_ALIGN_TOP_RIGHT, -15, 140);
+    lv_obj_set_style_bg_color(saveBtn, lv_palette_main(LV_PALETTE_BLUE), LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(saveBtn, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(saveBtn, 6, LV_PART_MAIN);
+
+    lv_obj_t *saveLabel = lv_label_create(saveBtn);
+    lv_label_set_text(saveLabel, LV_SYMBOL_OK " Save & Reboot");
+    lv_obj_set_style_text_color(saveLabel, lv_color_white(), LV_PART_MAIN);
+    lv_obj_center(saveLabel);
+    lv_obj_add_event_cb(saveBtn, SaveRebootBtnCb, LV_EVENT_CLICKED, this);
+
+    // --- Keyboard (hidden until textarea focused) ---
+    keyboard = lv_keyboard_create(settingsPanel);
+    lv_obj_set_size(keyboard, LCD_HRES, 130);
+    lv_obj_align(keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x1a1a1a), LV_PART_MAIN);
+    lv_obj_set_style_text_color(keyboard, lv_color_white(), LV_PART_ITEMS);
+    lv_obj_set_style_bg_color(keyboard, lv_color_hex(0x333333), LV_PART_ITEMS);
+    lv_obj_add_flag(keyboard, LV_OBJ_FLAG_HIDDEN);
+}
+
+void DisplayManager::CloseSettings()
+{
+    if (settingsPanel)
+    {
+        keyboard = nullptr;
+        ssidTextarea = nullptr;
+        passwordTextarea = nullptr;
+        lv_obj_del(settingsPanel);
+        settingsPanel = nullptr;
+    }
+}
+
+void DisplayManager::GearBtnCb(lv_event_t *e)
+{
+    auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
+    self->ShowSettings();
+}
+
+void DisplayManager::BackBtnCb(lv_event_t *e)
+{
+    auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
+    self->CloseSettings();
+}
+
+void DisplayManager::SaveRebootBtnCb(lv_event_t *e)
+{
+    auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
+
+    const char *ssid = lv_textarea_get_text(self->ssidTextarea);
+    const char *pass = lv_textarea_get_text(self->passwordTextarea);
+
+    self->settingsManager.setString("wifi.ssid", ssid);
+    self->settingsManager.setString("wifi.password", pass);
+    self->settingsManager.Save();
+
+    ESP_LOGI(TAG, "WiFi settings saved, rebooting...");
+    vTaskDelay(pdMS_TO_TICKS(500));
+    esp_restart();
+}
+
+void DisplayManager::ClearSensorsBtnCb(lv_event_t *e)
+{
+    auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
+    self->sensorManager.ClearAllSlots();
+    self->CloseSettings();
+}
+
+void DisplayManager::TextareaFocusCb(lv_event_t *e)
+{
+    auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
+    lv_obj_t *ta = lv_event_get_target(e);
+
+    if (self->keyboard)
+    {
+        lv_keyboard_set_textarea(self->keyboard, ta);
+        lv_obj_clear_flag(self->keyboard, LV_OBJ_FLAG_HIDDEN);
     }
 }

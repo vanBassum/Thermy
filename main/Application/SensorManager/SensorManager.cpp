@@ -119,6 +119,27 @@ void SensorManager::DismissPendingSensor()
     pendingCount--;
 }
 
+void SensorManager::ClearAllSlots()
+{
+    LOCK(mutex);
+    for (int s = 0; s < (int)MAX_SENSORS; s++)
+    {
+        settingsManager.setString(GetSlotKey(s), "");
+        slots[s].configuredAddress = 0;
+        if (slots[s].handle)
+        {
+            ds18b20_del_device(slots[s].handle);
+            slots[s].handle = nullptr;
+        }
+        slots[s].active = false;
+        slots[s].temperatureC = 0.0f;
+    }
+    pendingCount = 0;
+    settingsManager.Save();
+    rescanRequested = true;
+    ESP_LOGI(TAG, "All sensor slots cleared");
+}
+
 // ── Work loop ────────────────────────────────────────────────
 
 void SensorManager::Work()
