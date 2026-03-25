@@ -1,8 +1,7 @@
 #include "DisplayManager.h"
 #include <algorithm>
 #include <cinttypes>
-#include "DateTime.h"
-#include "esp_system.h"
+#include <cstring>
 
 static const lv_color_t channelColors[4] = {
     lv_palette_main(LV_PALETTE_RED),
@@ -10,15 +9,21 @@ static const lv_color_t channelColors[4] = {
     lv_palette_main(LV_PALETTE_GREEN),
     lv_palette_main(LV_PALETTE_YELLOW)
 };
-
 static const char *slotNames[4] = {"Red", "Blue", "Green", "Yellow"};
 
 DisplayManager::DisplayManager(ServiceProvider &ctx)
-    : networkManager(ctx.getNetworkManager())
-    , sensorManager(ctx.getSensorManager())
-    , settingsManager(ctx.getSettingsManager())
-    , displaySettings(ctx.getSettingsManager(), ctx.getSensorManager(), ctx.getNetworkManager())
+    : sensorManager(ctx.getSensorManager())
+    , homePage(ctx.getNetworkManager(), ctx.getSensorManager(), ctx.getSettingsManager())
+    , wifiPage(ctx.getSettingsManager(), ctx.getNetworkManager())
+    , sensorPage(ctx.getSettingsManager(), ctx.getSensorManager())
+    , systemPage(ctx.getSettingsManager())
 {
+    auto nav = [this](const char *page) { NavigateTo(page); };
+    homePage.SetNavigator(nav);
+    settingsMenuPage.SetNavigator(nav);
+    wifiPage.SetNavigator(nav);
+    sensorPage.SetNavigator(nav);
+    systemPage.SetNavigator(nav);
 }
 
 void DisplayManager::Init()
@@ -46,19 +51,28 @@ void DisplayManager::Init()
 
 void DisplayManager::Work()
 {
-    UiSetup();
+    NavigateTo("home");
 
     uint32_t delayMs;
-    TickType_t lastUiUpdate = xTaskGetTickCount();
+    TickType_t lastUpdate = xTaskGetTickCount();
 
     while (true)
     {
         delayMs = lv_timer_handler();
 
-        if (xTaskGetTickCount() - lastUiUpdate > pdMS_TO_TICKS(1000))
+        if (xTaskGetTickCount() - lastUpdate > pdMS_TO_TICKS(1000))
         {
-            lastUiUpdate = xTaskGetTickCount();
-            UiUpdate();
+            lastUpdate = xTaskGetTickCount();
+
+            if (activePage)
+                activePage->Update();
+
+            // Sensor assignment popup (only on home page)
+            if (activePage == &homePage && !assignPopup && sensorManager.HasPendingSensor())
+                ShowAssignPopup(sensorManager.GetPendingSensorAddress());
+
+            if (assignPopup && (xTaskGetTickCount() - popupShownAt > POPUP_TIMEOUT))
+                AutoAssignToFirstEmpty();
         }
 
         vTaskDelay(pdMS_TO_TICKS(std::clamp(delayMs, (uint32_t)5, (uint32_t)100)));
@@ -71,172 +85,41 @@ void DisplayManager::LvglTickCb(void *arg)
     lv_tick_inc(5);
 }
 
-// ── Main UI ──────────────────────────────────────────────────
-
-void DisplayManager::UiSetup()
+void DisplayManager::NavigateTo(const char *page)
 {
-    lv_obj_clean(lv_scr_act());
-    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_black(), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_clear_flag(lv_scr_act(), LV_OBJ_FLAG_SCROLLABLE);
+    CloseAssignPopup();
 
-    // ── Top bar ──
-    labelTime = lv_label_create(lv_scr_act());
-    lv_obj_set_pos(labelTime, 10, 6);
-    lv_label_set_text(labelTime, "00:00:00");
-    lv_obj_set_style_text_color(labelTime, lv_color_white(), LV_PART_MAIN);
-    lv_obj_set_style_text_font(labelTime, &lv_font_montserrat_14, LV_PART_MAIN);
+    DisplayPage *previousPage = activePage;
 
-    labelIP = lv_label_create(lv_scr_act());
-    lv_label_set_text(labelIP, "No IP");
-    lv_obj_set_style_text_color(labelIP, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
-    lv_obj_set_style_text_font(labelIP, &lv_font_montserrat_14, LV_PART_MAIN);
-    lv_obj_align(labelIP, LV_ALIGN_TOP_MID, 0, 6);
-
-    // ── 4 temperature slots in a row ──
-    static constexpr lv_coord_t slotY = 28;
-    static constexpr lv_coord_t slotH = 50;
-    static constexpr lv_coord_t slotGap = 6;
-    static constexpr lv_coord_t slotMargin = 6;
-    lv_coord_t slotW = (LCD_HRES - 2 * slotMargin - 3 * slotGap) / 4;
-
-    for (int i = 0; i < 4; i++)
+    if (activePage)
     {
-        lv_obj_t *box = lv_obj_create(lv_scr_act());
-        lv_obj_set_size(box, slotW, slotH);
-        lv_obj_set_pos(box, slotMargin + i * (slotW + slotGap), slotY);
-
-        lv_obj_set_style_bg_color(box, lv_color_hex(0x1a1a1a), LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(box, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_border_width(box, 2, LV_PART_MAIN);
-        lv_obj_set_style_border_color(box, channelColors[i], LV_PART_MAIN);
-        lv_obj_set_style_radius(box, 6, LV_PART_MAIN);
-        lv_obj_set_style_pad_all(box, 0, LV_PART_MAIN);
-        lv_obj_clear_flag(box, LV_OBJ_FLAG_SCROLLABLE);
-
-        lv_obj_t *label = lv_label_create(box);
-        lv_label_set_text(label, "--.--");
-        lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
-        lv_obj_set_style_text_color(label, channelColors[i], LV_PART_MAIN);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_20, LV_PART_MAIN);
-
-        tempBoxes[i] = box;
-        tempLabels[i] = label;
+        activePage->Hide();
+        activePage = nullptr;
     }
 
-    // ── Full-width chart ──
-    static constexpr lv_coord_t chartY = slotY + slotH + 6;
-    lv_coord_t chartH = LCD_VRES - chartY - 6;
-
-    int32_t graphMin = settingsManager.getInt("graph.min", 0);
-    int32_t graphMax = settingsManager.getInt("graph.max", 100);
-
-    chart = lv_chart_create(lv_scr_act());
-    lv_obj_set_size(chart, LCD_HRES - 2 * slotMargin, chartH);
-    lv_obj_set_pos(chart, slotMargin, chartY);
-
-    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
-    lv_chart_set_update_mode(chart, LV_CHART_UPDATE_MODE_SHIFT);
-    lv_chart_set_point_count(chart, 120);
-    lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, graphMin, graphMax);
-    lv_obj_set_style_size(chart, 0, LV_PART_INDICATOR);
-    lv_chart_set_div_line_count(chart, 5, 10);
-
-    lv_obj_set_style_bg_color(chart, lv_color_hex(0x0c0c0c), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(chart, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_border_width(chart, 1, LV_PART_MAIN);
-    lv_obj_set_style_border_color(chart, lv_color_hex(0x333333), LV_PART_MAIN);
-    lv_obj_set_style_radius(chart, 6, LV_PART_MAIN);
-    lv_obj_set_style_pad_left(chart, 30, LV_PART_MAIN);
-    lv_obj_set_style_pad_right(chart, 4, LV_PART_MAIN);
-    lv_obj_set_style_pad_top(chart, 4, LV_PART_MAIN);
-    lv_obj_set_style_pad_bottom(chart, 4, LV_PART_MAIN);
-    lv_obj_clear_flag(chart, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_line_color(chart, lv_color_hex(0x222222), LV_PART_MAIN);
-
-    // Y-axis labels
-    char labelBuf[8];
-    int32_t range = graphMax - graphMin;
-    int32_t step = range / 5;
-    for (int i = 0; i <= 5; i++)
+    if (strcmp(page, "back") == 0)
     {
-        int32_t val = graphMax - i * step;
-        snprintf(labelBuf, sizeof(labelBuf), "%ld", val);
-        lv_obj_t *lbl = lv_label_create(chart);
-        lv_label_set_text(lbl, labelBuf);
-        lv_obj_set_style_text_color(lbl, lv_color_hex(0x666666), LV_PART_MAIN);
-        lv_obj_set_style_text_font(lbl, &lv_font_montserrat_10, LV_PART_MAIN);
-        lv_coord_t yPos = (lv_coord_t)(i * (chartH - 8) / 5);
-        lv_obj_set_pos(lbl, 2, yPos);
-    }
-
-    for (int i = 0; i < 4; i++)
-        chartSeries[i] = lv_chart_add_series(chart, channelColors[i], LV_CHART_AXIS_PRIMARY_Y);
-
-    // ── Gear button (on top of everything) ──
-    lv_obj_t *gearBtn = lv_btn_create(lv_scr_act());
-    lv_obj_set_size(gearBtn, 44, 26);
-    lv_obj_align(gearBtn, LV_ALIGN_TOP_RIGHT, -4, 1);
-    lv_obj_set_style_bg_color(gearBtn, lv_color_hex(0x282828), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(gearBtn, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_shadow_width(gearBtn, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_width(gearBtn, 1, LV_PART_MAIN);
-    lv_obj_set_style_border_color(gearBtn, lv_color_hex(0x444444), LV_PART_MAIN);
-    lv_obj_set_style_radius(gearBtn, 4, LV_PART_MAIN);
-
-    lv_obj_t *gearIcon = lv_label_create(gearBtn);
-    lv_label_set_text(gearIcon, LV_SYMBOL_SETTINGS);
-    lv_obj_set_style_text_color(gearIcon, lv_color_white(), LV_PART_MAIN);
-    lv_obj_center(gearIcon);
-    lv_obj_add_event_cb(gearBtn, GearBtnCb, LV_EVENT_CLICKED, this);
-}
-
-void DisplayManager::UiUpdate()
-{
-    if (displaySettings.IsOpen())
-        return;
-
-    char buf[32];
-
-    DateTime now = DateTime::Now();
-    now.ToStringLocal(buf, sizeof(buf), "%H:%M:%S");
-    lv_label_set_text(labelTime, buf);
-
-    auto status = networkManager.wifi().getStatus();
-    if (status.has_ipv4)
-        snprintf(buf, sizeof(buf), IPSTR, IP2STR(&status.ipv4.ip));
-    else
-        snprintf(buf, sizeof(buf), "No IP");
-    lv_label_set_text(labelIP, buf);
-
-    chartCounter++;
-    if (chartCounter > 60)
-        chartCounter = 0;
-
-    for (int i = 0; i < 4; i++)
-    {
-        if (sensorManager.IsSlotActive(i))
-        {
-            float temp = sensorManager.GetTemperature(i);
-            snprintf(buf, sizeof(buf), "%.1f°", temp);
-            lv_label_set_text(tempLabels[i], buf);
-
-            if (chartCounter == 0)
-                lv_chart_set_next_value(chart, chartSeries[i], (lv_coord_t)temp);
-        }
+        // Back from sub-pages → settings menu, back from menu → home
+        if (previousPage == &settingsMenuPage)
+            activePage = &homePage;
         else
-        {
-            lv_label_set_text(tempLabels[i], "--.--");
-        }
+            activePage = &settingsMenuPage;
     }
+    else if (strcmp(page, "home") == 0)
+        activePage = &homePage;
+    else if (strcmp(page, "settings") == 0)
+        activePage = &settingsMenuPage;
+    else if (strcmp(page, "wifi") == 0)
+        activePage = &wifiPage;
+    else if (strcmp(page, "sensors") == 0)
+        activePage = &sensorPage;
+    else if (strcmp(page, "system") == 0)
+        activePage = &systemPage;
+    else
+        activePage = &homePage;
 
-    lv_chart_refresh(chart);
-
-    if (!assignPopup && sensorManager.HasPendingSensor())
-        ShowAssignPopup(sensorManager.GetPendingSensorAddress());
-
-    if (assignPopup && (xTaskGetTickCount() - popupShownAt > POPUP_TIMEOUT))
-        AutoAssignToFirstEmpty();
+    if (activePage)
+        activePage->Show(lv_scr_act());
 }
 
 // ── Assignment popup ─────────────────────────────────────────
@@ -277,18 +160,15 @@ void DisplayManager::ShowAssignPopup(uint64_t address)
     lv_obj_set_style_text_color(subtitle, lv_color_white(), LV_PART_MAIN);
     lv_obj_align(subtitle, LV_ALIGN_TOP_MID, 0, 75);
 
-    static constexpr lv_coord_t btnW = 100;
-    static constexpr lv_coord_t btnH = 60;
-    static constexpr lv_coord_t btnGap = 12;
+    static constexpr lv_coord_t btnW = 100, btnH = 60, btnGap = 12;
     lv_coord_t totalW = 4 * btnW + 3 * btnGap;
     lv_coord_t startX = (LCD_HRES - totalW) / 2;
-    lv_coord_t btnY = 110;
 
     for (int i = 0; i < 4; i++)
     {
         lv_obj_t *btn = lv_btn_create(assignPopup);
         lv_obj_set_size(btn, btnW, btnH);
-        lv_obj_set_pos(btn, startX + i * (btnW + btnGap), btnY);
+        lv_obj_set_pos(btn, startX + i * (btnW + btnGap), 110);
         lv_obj_set_style_bg_color(btn, channelColors[i], LV_PART_MAIN);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
         lv_obj_set_style_radius(btn, 10, LV_PART_MAIN);
@@ -352,10 +232,4 @@ void DisplayManager::PopupEventCb(lv_event_t *e)
     auto *self = static_cast<DisplayManager *>(lv_obj_get_user_data(btn));
     if (self && slot >= 0 && slot < 4)
         self->OnSlotSelected(slot);
-}
-
-void DisplayManager::GearBtnCb(lv_event_t *e)
-{
-    auto *self = static_cast<DisplayManager *>(lv_event_get_user_data(e));
-    self->displaySettings.Show(lv_scr_act());
 }
