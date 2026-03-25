@@ -14,18 +14,18 @@
 #include <cstring>
 
 const CommandManager::CommandEntry CommandManager::commands_[] = {
-    { "ping",         &CommandManager::Cmd_Ping },
-    { "info",         &CommandManager::Cmd_Info },
-    { "updateStatus",  &CommandManager::Cmd_UpdateStatus },
-    { "getSettings",   &CommandManager::Cmd_GetSettings },
-    { "setSetting",    &CommandManager::Cmd_SetSetting },
-    { "saveSettings",  &CommandManager::Cmd_SaveSettings },
-    { "reboot",        &CommandManager::Cmd_Reboot },
-    { "wifiScan",      &CommandManager::Cmd_WifiScan },
-    { "getLogs",       &CommandManager::Cmd_GetLogs },
-    { "getTemperatures", &CommandManager::Cmd_GetTemperatures },
-    { "getHistory",      &CommandManager::Cmd_GetHistory },
-    { nullptr, nullptr },
+    { "ping",            &CommandManager::Cmd_Ping,            false },
+    { "info",            &CommandManager::Cmd_Info,            false },
+    { "updateStatus",    &CommandManager::Cmd_UpdateStatus,    false },
+    { "getSettings",     &CommandManager::Cmd_GetSettings,     false },
+    { "setSetting",      &CommandManager::Cmd_SetSetting,      true  },
+    { "saveSettings",    &CommandManager::Cmd_SaveSettings,    true  },
+    { "reboot",          &CommandManager::Cmd_Reboot,          true  },
+    { "wifiScan",        &CommandManager::Cmd_WifiScan,        false },
+    { "getLogs",         &CommandManager::Cmd_GetLogs,         false },
+    { "getTemperatures", &CommandManager::Cmd_GetTemperatures, false },
+    { "getHistory",      &CommandManager::Cmd_GetHistory,      false },
+    { nullptr, nullptr, false },
 };
 
 CommandManager::CommandManager(ServiceProvider& serviceProvider)
@@ -52,11 +52,35 @@ bool CommandManager::Execute(const char* type, const char* json, JsonWriter& res
     {
         if (strcmp(type, commands_[i].type) == 0)
         {
+            if (commands_[i].requiresAuth && !CheckAuth(json, resp))
+                return true;
+
             (this->*commands_[i].func)(json, resp);
             return true;
         }
     }
 
+    return false;
+}
+
+bool CommandManager::CheckAuth(const char* json, JsonWriter& resp)
+{
+    char storedPin[64] = {};
+    serviceProvider_.getSettingsManager().getString("device.pin", storedPin, sizeof(storedPin));
+
+    // No PIN configured — auth disabled
+    if (storedPin[0] == '\0')
+        return true;
+
+    char pin[64] = {};
+    ExtractJsonString(json, "pin", pin, sizeof(pin));
+
+    if (strcmp(pin, storedPin) == 0)
+        return true;
+
+    ESP_LOGW(TAG, "Auth failed for command");
+    resp.field("ok", false);
+    resp.field("error", "auth");
     return false;
 }
 

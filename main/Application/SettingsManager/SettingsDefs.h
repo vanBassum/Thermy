@@ -13,6 +13,7 @@ inline const SettingDef SETTINGS_DEFS[] = {
 
     // Device
     { "device.name",   SettingType::String, "Device Name",   "Thermy" },
+    { "device.pin",    SettingType::String, "Device PIN",    "" },
 
     // Time
     { "ntp.server",    SettingType::String, "NTP Server",    "pool.ntp.org" },
