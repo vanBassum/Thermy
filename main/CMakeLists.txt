@@ -8,6 +8,9 @@ set(SOURCE_FILES_LIST
     "Application/WebServerManager/StaticFileHandler.cpp"
     "Application/WebServerManager/WebSocketHandler.cpp"
     "Application/CommandManager/CommandManager.cpp"
+    "Application/DeviceManager/DeviceManager.cpp"
+    "Application/HomeAssistantManager/HomeAssistantManager.cpp"
+    "Application/MqttManager/MqttManager.cpp"
     "Application/UpdateManager/UpdateManager.cpp"
     "Application/SettingsManager/SettingsManager.cpp"
     "Application/LogManager/LogManager.cpp"
@@ -33,6 +36,9 @@ set(INCLUDE_DIRS_LIST
     "Application/NetworkManager"
     "Application/WebServerManager"
     "Application/CommandManager"
+    "Application/DeviceManager"
+    "Application/HomeAssistantManager"
+    "Application/MqttManager"
     "Application/UpdateManager"
     "Application/SettingsManager"
     "Application/LogManager"
@@ -65,6 +71,7 @@ set(COMPONENT_REQUIRES
     esp_driver_ledc
     esp_driver_i2c
     esp_driver_gpio
+    espressif__mqtt
     onewire_bus
     esp_lcd
     lvgl

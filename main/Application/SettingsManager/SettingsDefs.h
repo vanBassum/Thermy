@@ -15,6 +15,14 @@ inline const SettingDef SETTINGS_DEFS[] = {
     { "device.name",   SettingType::String, "Device Name",   "Thermy" },
     { "device.pin",    SettingType::String, "Device PIN",    "" },
 
+    // MQTT
+    { "mqtt.enabled",  SettingType::Bool,   "MQTT Enabled",        "false" },
+    { "mqtt.broker",   SettingType::String, "MQTT Broker",         "" },
+    { "mqtt.port",     SettingType::Int,    "MQTT Port",           "1883" },
+    { "mqtt.user",     SettingType::String, "MQTT Username",       "" },
+    { "mqtt.pass",     SettingType::String, "MQTT Password",       "" },
+    { "mqtt.prefix",   SettingType::String, "MQTT Topic Prefix",   "thermy" },
+
     // Time
     { "ntp.server",    SettingType::String, "NTP Server",    "pool.ntp.org" },
     { "ntp.timezone",  SettingType::String, "Timezone (POSIX)", "CET-1CEST,M3.5.0,M10.5.0/3" },
