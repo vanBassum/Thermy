@@ -15,6 +15,7 @@ void WiFiInterface::Init()
 
     staNetif_ = esp_netif_create_default_wifi_sta();
     assert(staNetif_ != nullptr);
+    esp_netif_set_hostname(staNetif_, "thermy");
 
     apNetif_ = esp_netif_create_default_wifi_ap();
     assert(apNetif_ != nullptr);
