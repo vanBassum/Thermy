@@ -15,7 +15,6 @@ void WiFiInterface::Init()
 
     staNetif_ = esp_netif_create_default_wifi_sta();
     assert(staNetif_ != nullptr);
-    esp_netif_set_hostname(staNetif_, "thermy");
 
     apNetif_ = esp_netif_create_default_wifi_ap();
     assert(apNetif_ != nullptr);
@@ -30,6 +29,12 @@ void WiFiInterface::Init()
         WIFI_EVENT, ESP_EVENT_ANY_ID, &WifiEventHandler, this, nullptr));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         IP_EVENT, ESP_EVENT_ANY_ID, &WifiEventHandler, this, nullptr));
+}
+
+void WiFiInterface::SetHostname(const char* hostname)
+{
+    esp_netif_set_hostname(staNetif_, hostname);
+    esp_netif_set_hostname(apNetif_, hostname);
 }
 
 void WiFiInterface::ConnectSta(const char* ssid, const char* password)

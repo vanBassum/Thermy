@@ -49,6 +49,7 @@ void NetworkManager::Init()
 
     wifi_interface_.SetEventHandler([this](const NetworkEvent& e) { HandleNetworkEvent(e); });
     wifi_interface_.Init();
+    wifi_interface_.SetHostname("thermy");
 
     // Setup connect timeout timer
     connectTimer_.Init("sta_timeout", pdMS_TO_TICKS(StaConnectTimeoutMs), false);
