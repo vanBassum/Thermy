@@ -26,6 +26,10 @@ A smart temperature monitor built on the ESP32 with a touchscreen display and we
 
 Wire your DS18B20 sensors to GPIO 4 with a 4.7k pull-up resistor. The device handles the rest.
 
+### Enclosure
+
+A 3D-printable enclosure is available on [Thingiverse](https://www.thingiverse.com/thing:7191665).
+
 ## Getting Started
 
 ### Initial Flash
