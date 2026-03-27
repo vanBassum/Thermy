@@ -1,5 +1,5 @@
 #include "CommandManager.h"
-#include "LogManager.h"
+#include "ConsoleManager.h"
 #include "SettingsManager.h"
 #include "UpdateManager.h"
 #include "JsonWriter.h"
@@ -10,7 +10,7 @@
 #include "esp_heap_caps.h"
 #include "NetworkManager.h"
 #include "SensorManager.h"
-#include "TemperatureHistory.h"
+#include "LogManager.h"
 #include <cstring>
 
 const CommandManager::CommandEntry CommandManager::commands_[] = {
@@ -24,7 +24,8 @@ const CommandManager::CommandEntry CommandManager::commands_[] = {
     { "wifiScan",        &CommandManager::Cmd_WifiScan,        false },
     { "getLogs",         &CommandManager::Cmd_GetLogs,         false },
     { "getTemperatures", &CommandManager::Cmd_GetTemperatures, false },
-    { "getHistory",      &CommandManager::Cmd_GetHistory,      false },
+    { "getLogEntries",   &CommandManager::Cmd_GetLogEntries,   false },
+    { "eraseLog",        &CommandManager::Cmd_EraseLog,        true  },
     { nullptr, nullptr, false },
 };
 
@@ -205,7 +206,7 @@ void CommandManager::Cmd_WifiScan(const char* json, JsonWriter& resp)
 
 void CommandManager::Cmd_GetLogs(const char* json, JsonWriter& resp)
 {
-    serviceProvider_.getLogManager().WriteHistory(resp);
+    serviceProvider_.getConsoleManager().WriteHistory(resp);
 }
 
 void CommandManager::Cmd_GetTemperatures(const char* json, JsonWriter& resp)
@@ -231,37 +232,51 @@ void CommandManager::Cmd_GetTemperatures(const char* json, JsonWriter& resp)
     resp.endArray();
 }
 
-void CommandManager::Cmd_GetHistory(const char* json, JsonWriter& resp)
+void CommandManager::Cmd_GetLogEntries(const char* json, JsonWriter& resp)
 {
-    auto& history = serviceProvider_.getTemperatureHistory();
+    auto& logManager = serviceProvider_.getLogManager();
+    int32_t totalCount = static_cast<int32_t>(logManager.EntryCount());
 
-    int32_t count = 360;
-    ExtractJsonInt(json, "count", count);
-    if (count < 1) count = 1;
-    if (count > (int32_t)TemperatureHistory::MAX_SAMPLES) count = TemperatureHistory::MAX_SAMPLES;
+    int32_t offset = 0;
+    int32_t limit = 50;
+    ExtractJsonInt(json, "offset", offset);
+    ExtractJsonInt(json, "limit", limit);
+    if (offset < 0) offset = 0;
+    if (limit < 1) limit = 1;
+    if (limit > 200) limit = 200;
 
-    // Allocate on stack — limit to 360 to keep stack usage reasonable
-    if (count > 360) count = 360;
-    TemperatureSample samples[360];
-    size_t n = history.GetSamples(samples, count);
+    resp.field("entryCount", totalCount);
+    resp.field("offset", offset);
+    resp.field("limit", limit);
+    resp.fieldArray("entries");
 
-    resp.field("maxSamples", static_cast<int32_t>(TemperatureHistory::MAX_SAMPLES));
-    resp.field("rate", serviceProvider_.getSettingsManager().getInt("history.rate", TemperatureHistory::DEFAULT_RATE_SECONDS));
-    resp.field("count", static_cast<int32_t>(n));
-    resp.fieldArray("samples");
-    for (size_t i = 0; i < n; i++)
+    auto view = logManager.Read();
+    int32_t idx = 0;
+    int32_t emitted = 0;
+    for (auto entry : view)
     {
-        resp.beginObject();
-        for (int s = 0; s < 4; s++)
+        if (idx < offset) { idx++; continue; }
+        if (emitted >= limit) break;
+
+        resp.beginArray();
+        for (uint32_t f = 0; f < entry.fieldCount(); f++)
         {
-            char key[4];
-            snprintf(key, sizeof(key), "s%d", s);
-            if (samples[i].IsActive(s))
-                resp.field(key, samples[i].temperatures[s]);
-            else
-                resp.nullField(key);
+            resp.beginArray();
+            resp.value(static_cast<int32_t>(entry.key<uint8_t>(f)));
+            resp.value(static_cast<int32_t>(entry.value<uint32_t>(f)));
+            resp.endArray();
         }
-        resp.endObject();
+        resp.endArray();
+        idx++;
+        emitted++;
     }
+
     resp.endArray();
 }
+
+void CommandManager::Cmd_EraseLog(const char* json, JsonWriter& resp)
+{
+    bool ok = serviceProvider_.getLogManager().Erase();
+    resp.field("ok", ok);
+}
+

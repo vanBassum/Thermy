@@ -18,6 +18,7 @@ public:
     bool IsTimeValid() const;
 
 private:
+    ServiceProvider &serviceProvider_;
     SettingsManager &settingsManager;
     InitState initState;
 

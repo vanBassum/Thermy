@@ -205,8 +205,12 @@ class BackendService {
     return this.send<TemperaturesResponse>("getTemperatures")
   }
 
-  async getHistory(count = 360): Promise<HistoryResponse> {
-    return this.send<HistoryResponse>("getHistory", { count })
+  async getLogEntries(offset = 0, limit = 50): Promise<LogEntriesResponse> {
+    return this.send<LogEntriesResponse>("getLogEntries", { offset, limit })
+  }
+
+  async eraseLog(): Promise<{ ok: boolean }> {
+    return this.send("eraseLog")
   }
 
   async uploadFirmware(
@@ -322,17 +326,13 @@ export interface TemperaturesResponse {
   sensors: SensorReading[]
 }
 
-export interface HistorySample {
-  s0: number | null
-  s1: number | null
-  s2: number | null
-  s3: number | null
-}
+// Raw entry from backend: array of [key, value] pairs
+export type RawLogEntry = [number, number][]
 
-export interface HistoryResponse {
-  maxSamples: number
-  rate: number
-  count: number
-  samples: HistorySample[]
+export interface LogEntriesResponse {
+  entryCount: number
+  offset: number
+  limit: number
+  entries: RawLogEntry[]
 }
 

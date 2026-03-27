@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react"
 import { backend, type SettingEntry, type WifiNetwork } from "@/lib/backend"
-import { MAX_SAMPLES, formatDuration } from "@/hooks/use-temperatures"
 import { useConnectionStatus } from "@/hooks/use-connection-status"
 import { SettingsIcon, SaveIcon, RotateCcwIcon, PowerIcon, SearchIcon, LockIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -134,18 +133,11 @@ function SettingRow({
   onChange: (value: string) => void
 }) {
   const isWifiSsid = setting.key === "wifi.ssid"
-  const isHistoryRate = setting.key === "history.rate"
-
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">
         <div className="text-sm font-medium">{setting.label}</div>
         <div className="text-xs text-muted-foreground font-mono">{setting.key}</div>
-        {isHistoryRate && typeof setting.value === "number" && setting.value > 0 && (
-          <div className="text-xs text-emerald-500 mt-0.5">
-            Storage: {formatDuration(MAX_SAMPLES * setting.value)} ({MAX_SAMPLES} samples)
-          </div>
-        )}
       </div>
 
       {setting.type === "bool" ? (

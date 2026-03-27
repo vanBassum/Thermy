@@ -1,5 +1,6 @@
 #include "TimeManager.h"
 #include "SettingsManager/SettingsManager.h"
+#include "LogManager/LogManager.h"
 #include "esp_log.h"
 #include "esp_netif_sntp.h"
 #include <ctime>
@@ -7,7 +8,8 @@
 TimeManager *TimeManager::instance = nullptr;
 
 TimeManager::TimeManager(ServiceProvider &ctx)
-    : settingsManager(ctx.getSettingsManager())
+    : serviceProvider_(ctx)
+    , settingsManager(ctx.getSettingsManager())
 {
 }
 
@@ -69,6 +71,11 @@ void TimeManager::TimeSyncCallback(struct timeval *tv)
         return;
 
     instance->synced = true;
+    instance->serviceProvider_.getLogManager().OnTimeSynced();
+
+    instance->serviceProvider_.getLogManager().Append(
+        LogKeys::TimeStamp, DateTime::Now(),
+        LogKeys::LogCode, static_cast<uint32_t>(LogCode::TimeSynced));
 
     char buf[32];
     DateTime now = DateTime::Now();

@@ -1,4 +1,4 @@
-import { HomeIcon, ThermometerIcon, TerminalIcon, SettingsIcon, DownloadIcon } from "lucide-react"
+import { HomeIcon, ThermometerIcon, ScrollTextIcon, TerminalIcon, SettingsIcon, DownloadIcon } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,7 @@ import { PreReleaseBadge } from "@/components/PreReleaseBadge"
 const navItems = [
   { title: "Home", icon: HomeIcon, page: "home" as const },
   { title: "Temperature", icon: ThermometerIcon, page: "temperature" as const },
+  { title: "Log", icon: ScrollTextIcon, page: "log" as const },
   { title: "Console", icon: TerminalIcon, page: "console" as const },
   { title: "Settings", icon: SettingsIcon, page: "settings" as const },
   { title: "Firmware", icon: DownloadIcon, page: "firmware" as const },

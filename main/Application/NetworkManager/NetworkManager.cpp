@@ -1,5 +1,7 @@
 #include "NetworkManager.h"
 #include "SettingsManager.h"
+#include "LogManager.h"
+#include "DateTime.h"
 #include "nvs_flash.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
@@ -136,10 +138,16 @@ void NetworkManager::HandleNetworkEvent(const NetworkEvent& event)
         if (!wifi_interface_.IsAP())
         {
             ESP_LOGI(TAG, "STA connected to AP");
+            serviceProvider_.getLogManager().Append(
+                LogKeys::TimeStamp, DateTime::Now(),
+                LogKeys::LogCode, static_cast<uint32_t>(LogCode::StaConnected));
         }
         else
         {
             ESP_LOGI(TAG, "AP started");
+            serviceProvider_.getLogManager().Append(
+                LogKeys::TimeStamp, DateTime::Now(),
+                LogKeys::LogCode, static_cast<uint32_t>(LogCode::ApStarted));
         }
         break;
 
@@ -147,30 +155,44 @@ void NetworkManager::HandleNetworkEvent(const NetworkEvent& event)
         if (!wifi_interface_.IsAP())
         {
             ESP_LOGW(TAG, "STA disconnected");
+            serviceProvider_.getLogManager().Append(
+                LogKeys::TimeStamp, DateTime::Now(),
+                LogKeys::LogCode, static_cast<uint32_t>(LogCode::StaDisconnected));
 
             if (staConnected_)
             {
-                // Was connected, lost connection — try to reconnect
                 staConnected_ = false;
                 staRetryCount_ = 0;
                 ESP_LOGI(TAG, "Lost connection, attempting reconnect");
+                serviceProvider_.getLogManager().Append(
+                    LogKeys::TimeStamp, DateTime::Now(),
+                    LogKeys::LogCode, static_cast<uint32_t>(LogCode::StaReconnecting));
                 esp_wifi_connect();
                 connectTimer_.Start();
             }
-            // If not yet connected, the timeout timer handles retries
         }
         break;
 
     case NetworkEventType::Ipv4Acquired:
+    {
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event.status.ipv4.ip));
         connectTimer_.Stop();
         staConnected_ = true;
         staRetryCount_ = 0;
+        uint32_t ip = event.status.ipv4.ip.addr;
+        serviceProvider_.getLogManager().Append(
+            LogKeys::TimeStamp, DateTime::Now(),
+            LogKeys::LogCode, static_cast<uint32_t>(LogCode::IpAcquired),
+            LogKeys::IpAddress, ip);
         break;
+    }
 
     case NetworkEventType::Ipv4Lost:
         ESP_LOGW(TAG, "Lost IP");
         staConnected_ = false;
+        serviceProvider_.getLogManager().Append(
+            LogKeys::TimeStamp, DateTime::Now(),
+            LogKeys::LogCode, static_cast<uint32_t>(LogCode::IpLost));
         break;
     }
 }

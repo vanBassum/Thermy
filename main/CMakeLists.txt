@@ -13,7 +13,9 @@ set(SOURCE_FILES_LIST
     "Application/MqttManager/MqttManager.cpp"
     "Application/UpdateManager/UpdateManager.cpp"
     "Application/SettingsManager/SettingsManager.cpp"
+    "Application/ConsoleManager/ConsoleManager.cpp"
     "Application/LogManager/LogManager.cpp"
+    "Application/LogManager/EspFlash.cpp"
     "Application/DisplayManager/DisplayManager.cpp"
     "Application/DisplayManager/DisplayPage.cpp"
     "Application/DisplayManager/HomePage.cpp"
@@ -24,7 +26,7 @@ set(SOURCE_FILES_LIST
     "Application/DisplayManager/SystemPage.cpp"
     "hardware/display/Display_WT32SC01.cpp"
     "Application/SensorManager/SensorManager.cpp"
-    "Application/TemperatureHistory/TemperatureHistory.cpp"
+    "Application/MonitorManager/MonitorManager.cpp"
     "Application/TimeManager/TimeManager.cpp"
     "lib/system/DateTime.cpp"
     "lib/system/TimeSpan.cpp"
@@ -41,10 +43,11 @@ set(INCLUDE_DIRS_LIST
     "Application/MqttManager"
     "Application/UpdateManager"
     "Application/SettingsManager"
+    "Application/ConsoleManager"
     "Application/LogManager"
     "Application/DisplayManager"
     "Application/SensorManager"
-    "Application/TemperatureHistory"
+    "Application/MonitorManager"
     "Application/TimeManager"
     "hardware"
     "hardware/display"
@@ -77,6 +80,7 @@ set(COMPONENT_REQUIRES
     lvgl
     esp_lcd_touch
     mdns
+    flash_log
 )
 
 # Register component with ESP-IDF

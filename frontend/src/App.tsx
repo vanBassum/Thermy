@@ -6,6 +6,7 @@ import ConsolePage from "@/pages/ConsolePage"
 import SettingsPage from "@/pages/SettingsPage"
 import FirmwarePage from "@/pages/FirmwarePage"
 import TemperaturePage from "@/pages/TemperaturePage"
+import LogPage from "@/pages/LogPage"
 
 function PageContent({ page }: { page: Page }) {
   switch (page) {
@@ -13,6 +14,8 @@ function PageContent({ page }: { page: Page }) {
       return <HomePage />
     case "temperature":
       return <TemperaturePage />
+    case "log":
+      return <LogPage />
     case "console":
       return <ConsolePage />
     case "settings":
