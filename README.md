@@ -4,46 +4,60 @@ A smart temperature monitor built on the ESP32 with a touchscreen display and we
 
 <img width="1096" height="591" alt="image" src="https://github.com/user-attachments/assets/cc282e06-f84b-497d-8e5a-3e04add95bac" />
 
-## Features
-
-- **4-Channel Temperature Monitoring** — Connect up to 4 DS18B20 sensors via OneWire. Each sensor is color-coded (red, blue, green, yellow) for easy identification.
-- **Touchscreen Display** — 480x320 capacitive touchscreen showing live readings and a scrolling temperature graph. Configure everything directly on the device.
-- **Web Dashboard** — Access a full-featured web UI from any browser on your network. View sensor cards, interactive charts, device info, and live logs.
-- **Historical Graphs** — Stores up to 8192 samples per sensor in memory. At the default 10-second sample rate that's roughly 22 hours of history. Adjust the rate to store more.
-- **Auto Sensor Discovery** — New sensors are detected automatically. A popup lets you assign each sensor to one of the 4 slots.
-- **WiFi with AP Fallback** — Connects to your home network. If it can't connect, it creates its own access point (`Thermy-AP`) so you're never locked out.
-- **Over-the-Air Updates** — After the initial USB flash, update firmware and the web UI wirelessly from the browser.
-- **NTP Time Sync** — Automatic clock sync with configurable timezone support.
-
-## Hardware
+## What You Need
 
 | Component | Details |
 |-----------|---------|
-| Board | WT32-SC01 (ESP32 with 480x320 touchscreen) |
-| Sensors | DS18B20 digital temperature sensors (1-4) on GPIO 4 |
-| Flash | 16 MB (firmware + web UI + settings) |
-| Connectivity | WiFi 802.11 b/g/n |
+| Board | [WT32-SC01](https://www.aliexpress.com/w/wholesale-wt32-sc01.html) (ESP32 with 480x320 touchscreen) |
+| Sensors | 1–4 DS18B20 temperature sensors |
+| Wiring | Connect sensors to **GPIO 4** with a **4.7k pull-up resistor** |
+| Enclosure | [3D-printable enclosure on Thingiverse](https://www.thingiverse.com/thing:7191665) (optional) |
 
-Wire your DS18B20 sensors to GPIO 4 with a 4.7k pull-up resistor. The device handles the rest.
+## Quick Start
 
-### Enclosure
+### 1. Flash the Firmware
 
-A 3D-printable enclosure is available on [Thingiverse](https://www.thingiverse.com/thing:7191665).
+No tools to install — flash directly from your browser.
 
-## Getting Started
+1. Download `Thermy-factory.bin` from the [Releases](../../releases) page
+2. Open the [ESP Web Flasher](https://espressif.github.io/esptool-js/) (Chrome or Edge)
+3. Connect your WT32-SC01 via USB
+4. Select the serial port, set flash offset to `0x0`, upload the binary, and click **Program**
 
-### Initial Flash
+### 2. Connect to WiFi
 
-You need a USB connection for the first flash only. After that, updates go over WiFi.
+1. On your phone or computer, connect to the **Thermy-AP** network
+2. Open the web UI at the device's IP address
+3. Go to **Settings**, enter your WiFi credentials, and save
+4. Thermy reboots and joins your network
 
-**Option A — Pre-built release:**
-Download `Thermy-factory.bin` from the [Releases](../../releases) page and flash it:
-```bash
-esptool.py --port /dev/ttyUSB0 write_flash 0x0 Thermy-factory.bin
-```
+### 3. Plug in Sensors
 
-**Option B — Build from source:**
+Wire your DS18B20 sensors to GPIO 4. When a new sensor is detected, a popup appears on the touchscreen — tap a colored slot (red, blue, green, yellow) to assign it. Done.
+
+## Features
+
+- **Touchscreen Display** — Live readings, scrolling temperature graph, and full settings configuration directly on the device
+- **Web Dashboard** — Sensor cards, interactive charts, device info, live log console, and OTA updates from any browser
+- **Historical Graphs** — Up to 8192 samples per sensor (~22 hours at the default 10-second rate)
+- **Home Assistant / MQTT** — Auto-discovery integration, publishes all sensors as HA entities
+- **WiFi with AP Fallback** — If WiFi fails, Thermy creates its own access point so you're never locked out
+- **Over-the-Air Updates** — After the initial flash, update firmware and web UI wirelessly
+- **NTP Time Sync** — Automatic clock sync with configurable timezone
+
+## Updating Over the Air
+
+After the initial USB flash, you never need a cable again. From the web UI's **Firmware** page, upload:
+
+- `Thermy-app.bin` — Application firmware
+- `Thermy-www.bin` — Web interface only
+
+Dual partitions ensure safe updates — if something goes wrong, the previous firmware is still available.
+
+## Building from Source
+
 Requires [ESP-IDF v6.0+](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/get-started/) and [Node.js 22+](https://nodejs.org/) with [pnpm](https://pnpm.io/).
+
 ```bash
 cd frontend && pnpm install && pnpm build && cd ..
 idf.py set-target esp32
@@ -51,64 +65,9 @@ idf.py build
 idf.py -p /dev/ttyUSB0 flash monitor
 ```
 
-### First Boot
+## Built With
 
-1. Thermy starts in access point mode, broadcasting **Thermy-AP** (open network)
-2. Connect to Thermy-AP from your phone or computer
-3. Open the web UI at the device's IP address
-4. Go to **Settings**, enter your WiFi credentials, and save
-5. Thermy reboots and connects to your network
-
-## Using the Touchscreen
-
-The home screen shows the current time, IP address, live temperature readings for all 4 slots, and a scrolling line chart.
-
-Tap the **gear icon** to access settings:
-
-- **WiFi** — Scan for networks, select one, enter the password
-- **Sensors & Timing** — Adjust how often the bus is scanned and temperatures are read. Clear sensor assignments to start fresh.
-- **Graph** — Set the sample rate and Y-axis range. The display shows how long the current settings will store.
-- **System** — Change the device name, NTP server, and timezone
-
-All settings changes require tapping **Save & Reboot** to take effect.
-
-### Assigning Sensors
-
-When a new DS18B20 sensor is detected on the bus, a popup appears on the touchscreen. Tap one of the 4 colored slots to assign it. The assignment is saved and persists across reboots.
-
-## Using the Web Interface
-
-Once connected to WiFi, open Thermy's IP address in any browser. The web UI provides:
-
-| Page | What it does |
-|------|-------------|
-| **Dashboard** | Firmware version, chip info, memory usage |
-| **Temperature** | Live sensor cards and an interactive historical chart |
-| **Console** | Real-time device log stream |
-| **Settings** | View and edit all device settings |
-| **Firmware** | Upload new firmware or web UI updates over the air |
-
-## Updating Over the Air
-
-After the initial USB flash, you never need a cable again. From the web UI's **Firmware** page:
-
-- **Application Firmware** — Upload `Thermy-app.bin` to update the device firmware
-- **WWW Partition** — Upload `Thermy-www.bin` to update just the web interface
-
-The device uses dual partitions for safe updates — if something goes wrong, the previous firmware is still available.
-
-## Settings Reference
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Device name | Thermy | Name shown in the UI |
-| WiFi SSID / Password | — | Your WiFi network credentials |
-| NTP server | pool.ntp.org | Time synchronization server |
-| Timezone | CET-1CEST,M3.5.0,M10.5.0/3 | POSIX timezone string |
-| Sample rate | 10 seconds | How often a data point is stored to the history graph |
-| Graph Y-axis min/max | 0 / 100 | Temperature range for the graph display |
-| Bus scan interval | 5000 ms | How often to scan for new sensors |
-| Temperature read interval | 1000 ms | How often to read sensor values |
+Thermy is built on [Strux](https://github.com/vanBassum/Strux), a reusable ESP32 application template that provides the touchscreen UI, web dashboard, MQTT/Home Assistant integration, and OTA update infrastructure out of the box. If you want to build your own ESP32 project with similar features, Strux is the place to start.
 
 ## License
 
