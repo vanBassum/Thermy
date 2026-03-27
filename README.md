@@ -9,9 +9,10 @@ A smart temperature monitor built on the ESP32 with a touchscreen display and we
 | Component | Details |
 |-----------|---------|
 | Board | [WT32-SC01](https://www.aliexpress.com/w/wholesale-wt32-sc01.html) (ESP32 with 480x320 touchscreen) |
-| Sensors | 1–4 DS18B20 temperature sensors |
-| Wiring | Connect sensors to **GPIO 4** with a **4.7k pull-up resistor** |
-| Enclosure | [3D-printable enclosure on Thingiverse](https://www.thingiverse.com/thing:7191665) (optional) |
+| Sensors | Up to 4 DS18B20 temperature sensors |
+| Connectors | Up to 4 mini-xls connectors with accompanying panel connectors |
+| Wiring | Connect sensors to **GPIO 4** with a single **4.7k pull-up resistor** |
+| Enclosure | [3D-printable enclosure on Thingiverse](https://www.thingiverse.com/thing:7191665) |
 
 ## Quick Start
 
