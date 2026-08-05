@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   LineChart,
   Line,
@@ -9,121 +9,139 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts"
-import { backend, type RawLogEntry } from "@/lib/backend"
+import { ThermometerIcon } from "lucide-react"
+import { backend, type SensorSlot } from "@/lib/backend"
 import { useConnectionStatus } from "@/hooks/use-connection-status"
-import { LogKey, LogCodeValue, int32ToFloat } from "@/lib/log-defs"
+import { Button } from "@/components/ui/button"
 
 const SLOT_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#eab308"] as const
 const SLOT_NAMES = ["Red", "Blue", "Green", "Yellow"] as const
-const CHART_ENTRIES = 360
+
+const POLL_MS = 2000
+// How many polled samples the in-page chart keeps. At POLL_MS that is ~10 min.
+const CHART_POINTS = 300
 
 interface ChartPoint {
   time: string
+  t0?: number
   t1?: number
   t2?: number
   t3?: number
-  t4?: number
-}
-
-function decodeTemps(raw: RawLogEntry): (number | null)[] {
-  const fields = new Map<number, number>()
-  for (const [k, v] of raw) fields.set(k, v)
-  return [
-    LogKey.Temperature_1,
-    LogKey.Temperature_2,
-    LogKey.Temperature_3,
-    LogKey.Temperature_4,
-  ].map((key) => {
-    const bits = fields.get(key)
-    if (bits === undefined) return null
-    const v = int32ToFloat(bits)
-    return isNaN(v) ? null : Math.round(v * 10) / 10
-  })
-}
-
-function rawToChartPoint(raw: RawLogEntry): ChartPoint | null {
-  const fields = new Map<number, number>()
-  for (const [k, v] of raw) fields.set(k, v)
-  if (fields.get(LogKey.LogCode) !== LogCodeValue.TemperatureReading) return null
-
-  const ts = fields.get(LogKey.TimeStamp) ?? 0
-  const temps = decodeTemps(raw)
-  const point: ChartPoint = {
-    time: ts ? new Date(ts * 1000).toLocaleTimeString() : "",
-  }
-  if (temps[0] !== null) point.t1 = temps[0]
-  if (temps[1] !== null) point.t2 = temps[1]
-  if (temps[2] !== null) point.t3 = temps[2]
-  if (temps[3] !== null) point.t4 = temps[3]
-  return point
 }
 
 export default function TemperaturePage() {
   const connection = useConnectionStatus()
+  const [slots, setSlots] = useState<SensorSlot[]>([])
+  const [pending, setPending] = useState("")
   const [history, setHistory] = useState<ChartPoint[]>([])
-  const [current, setCurrent] = useState<(number | null)[]>([null, null, null, null])
-  const [graphRange, setGraphRange] = useState<{ min: number; max: number }>({ min: 0, max: 100 })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const fetchHistory = useCallback(() => {
-    backend
-      .getLogEntries(0, 1)
-      .then((r) => {
-        const total = r.entryCount
-        const offset = Math.max(0, total - CHART_ENTRIES)
-        return backend.getLogEntries(offset, CHART_ENTRIES)
-      })
-      .then((r) => {
-        const points: ChartPoint[] = []
-        for (const raw of r.entries) {
-          const p = rawToChartPoint(raw)
-          if (p) points.push(p)
-        }
-        setHistory(points)
-        // Set current from the last temperature entry
-        for (let i = r.entries.length - 1; i >= 0; i--) {
-          const fields = new Map<number, number>()
-          for (const [k, v] of r.entries[i]) fields.set(k, v)
-          if (fields.get(LogKey.LogCode) === LogCodeValue.TemperatureReading) {
-            setCurrent(decodeTemps(r.entries[i]))
-            break
-          }
-        }
-      })
-      .catch(() => {})
+  // Kept in a ref so the poll effect doesn't restart on every sample.
+  const appendPoint = useRef<(s: SensorSlot[]) => void>(() => {})
+  appendPoint.current = (fresh: SensorSlot[]) => {
+    const point: ChartPoint = { time: new Date().toLocaleTimeString() }
+    for (const s of fresh) {
+      if (s.active && typeof s.celsius === "number") {
+        point[`t${s.slot}` as "t0" | "t1" | "t2" | "t3"] = Math.round(s.celsius * 10) / 10
+      }
+    }
+    setHistory((prev) => {
+      const next = [...prev, point]
+      return next.length > CHART_POINTS ? next.slice(-CHART_POINTS) : next
+    })
+  }
 
-    backend.getSettings().then((s) => {
-      const min = s.settings.find((x) => x.key === "graph.min")
-      const max = s.settings.find((x) => x.key === "graph.max")
-      if (min && max) setGraphRange({ min: Number(min.value), max: Number(max.value) })
-    }).catch(() => {})
+  const poll = useCallback(async () => {
+    try {
+      const res = await backend.getSensors()
+      setSlots(res.slots)
+      setPending(res.pending)
+      appendPoint.current(res.slots)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "read failed")
+    }
   }, [])
 
   useEffect(() => {
     if (connection !== "connected") return
-    fetchHistory()
-  }, [connection, fetchHistory])
+    void poll()
+    const id = setInterval(() => void poll(), POLL_MS)
+    return () => clearInterval(id)
+  }, [connection, poll])
 
-  // Live updates from broadcast
-  useEffect(() => {
-    return backend.subscribe((msg) => {
-      if (!Array.isArray(msg.logEntry)) return
-      const raw = msg.logEntry as RawLogEntry
-      const point = rawToChartPoint(raw)
-      if (!point) return
+  const assign = async (slot: number) => {
+    setBusy(true)
+    try {
+      const res = await backend.assignSensor(slot)
+      if (!res.ok) setError(res.error ?? "assign failed")
+      await poll()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "assign failed")
+    } finally {
+      setBusy(false)
+    }
+  }
 
-      setCurrent(decodeTemps(raw))
-      setHistory((prev) => {
-        const next = [...prev, point]
-        return next.length > CHART_ENTRIES ? next.slice(-CHART_ENTRIES) : next
-      })
-    })
-  }, [])
+  const clearAll = async () => {
+    setBusy(true)
+    try {
+      await backend.clearSensors()
+      setHistory([])
+      await poll()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "clear failed")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Slots the device did not report yet — render placeholders so the grid
+  // doesn't pop in as the first poll lands.
+  const cards: (SensorSlot | null)[] = [0, 1, 2, 3].map(
+    (i) => slots.find((s) => s.slot === i) ?? null,
+  )
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* Sensor cards */}
+      <div className="flex items-center gap-2">
+        <ThermometerIcon className="size-5 text-muted-foreground" />
+        <h1 className="text-2xl font-bold">Temperature</h1>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* A probe on the bus that no slot claims. Assigning it here does the same
+          thing as tapping a colour on the device's own screen. */}
+      {pending && (
+        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3">
+          <div className="mb-2 text-sm">
+            New probe detected: <span className="font-mono">{pending}</span> — assign it to a slot:
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {SLOT_NAMES.map((name, i) => (
+              <Button
+                key={i}
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => void assign(i)}
+              >
+                {name}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Slot cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {current.map((temp, i) => (
+        {cards.map((slot, i) => (
           <div
             key={i}
             className="rounded-lg border-2 bg-card p-3 text-center"
@@ -136,13 +154,20 @@ export default function TemperaturePage() {
               {SLOT_NAMES[i]}
             </div>
             <div className="mt-1 text-2xl font-bold tabular-nums">
-              {temp !== null ? `${temp.toFixed(1)}°` : "--.-"}
+              {slot?.active && typeof slot.celsius === "number"
+                ? `${slot.celsius.toFixed(1)}°`
+                : "--.-"}
+            </div>
+            <div className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
+              {!slot || !slot.address ? "unassigned" : slot.active ? slot.address : "offline"}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Chart */}
+      {/* Chart. This is a live view assembled in the browser, not device history:
+          the on-flash log is gone, and long-term series live wherever telemetry
+          is being shipped to. Reloading the page starts it over. */}
       <div className="min-h-0 flex-1 rounded-lg border bg-card p-4">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={history}>
@@ -153,11 +178,7 @@ export default function TemperaturePage() {
               interval="preserveStartEnd"
               minTickGap={60}
             />
-            <YAxis
-              tick={{ fill: "#888", fontSize: 11 }}
-              domain={[graphRange.min, graphRange.max]}
-              width={40}
-            />
+            <YAxis tick={{ fill: "#888", fontSize: 11 }} width={40} domain={["auto", "auto"]} />
             <Tooltip
               contentStyle={{
                 backgroundColor: "#1a1a1a",
@@ -171,17 +192,24 @@ export default function TemperaturePage() {
               <Line
                 key={i}
                 type="monotone"
-                dataKey={`t${i + 1}`}
+                dataKey={`t${i}`}
                 name={name}
                 stroke={SLOT_COLORS[i]}
                 strokeWidth={2}
                 dot={false}
                 isAnimationActive={false}
-                hide={current[i] === null}
+                connectNulls
+                hide={!cards[i]?.active}
               />
             ))}
           </LineChart>
         </ResponsiveContainer>
+      </div>
+
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" disabled={busy} onClick={() => void clearAll()}>
+          Clear all assignments
+        </Button>
       </div>
     </div>
   )

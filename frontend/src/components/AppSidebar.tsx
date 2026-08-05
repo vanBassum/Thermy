@@ -1,4 +1,5 @@
-import { HomeIcon, ThermometerIcon, ScrollTextIcon, TerminalIcon, SettingsIcon, DownloadIcon } from "lucide-react"
+import { useEffect } from "react"
+import { HomeIcon, TerminalIcon, SettingsIcon, DownloadIcon, ThermometerIcon } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -19,7 +20,6 @@ import { PreReleaseBadge } from "@/components/PreReleaseBadge"
 const navItems = [
   { title: "Home", icon: HomeIcon, page: "home" as const },
   { title: "Temperature", icon: ThermometerIcon, page: "temperature" as const },
-  { title: "Log", icon: ScrollTextIcon, page: "log" as const },
   { title: "Console", icon: TerminalIcon, page: "console" as const },
   { title: "Settings", icon: SettingsIcon, page: "settings" as const },
   { title: "Firmware", icon: DownloadIcon, page: "firmware" as const },
@@ -50,11 +50,16 @@ export function AppSidebar({ currentPage, onNavigate }: AppSidebarProps) {
   const release = useLatestRelease()
   const updateAvailable = info && release && isNewerVersion(info.firmware, release.version)
 
+  // Browser tab title follows the device name (login page covers pre-auth).
+  useEffect(() => {
+    if (info?.name) document.title = info.name
+  }, [info?.name])
+
   return (
     <Sidebar>
       <SidebarHeader className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">Thermy</span>
+          <span className="text-sm font-semibold">{info?.name ?? "…"}</span>
           <PreReleaseBadge version={info?.firmware} />
         </div>
       </SidebarHeader>
