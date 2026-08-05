@@ -39,9 +39,10 @@ Wire your DS18B20 sensors to GPIO 4. When a new sensor is detected, a popup appe
 ## Features
 
 - **Touchscreen Display** — Live readings, scrolling temperature graph, and full settings configuration directly on the device
-- **Web Dashboard** — Sensor cards, interactive charts, device info, live log console, and OTA updates from any browser
-- **Historical Graphs** — Up to 8192 samples per sensor (~22 hours at the default 10-second rate)
-- **Home Assistant / MQTT** — Auto-discovery integration, publishes all sensors as HA entities
+- **Web Dashboard** — Sensor cards, a live chart, probe assignment, device info, log console, and OTA updates from any browser
+- **Telemetry** — Each probe's temperature is published as an InfluxDB point on a configurable interval, so history lives in a real time-series database instead of on the device's flash
+- **Remote Access** — Optional outbound relay connection, so the device is reachable off-LAN without a port forward (off by default)
+- **Optional Password** — The web UI is open until you set one; after that, sessions resume across reconnects
 - **WiFi with AP Fallback** — If WiFi fails, Thermy creates its own access point so you're never locked out
 - **Over-the-Air Updates** — After the initial flash, update firmware and web UI wirelessly
 - **NTP Time Sync** — Automatic clock sync with configurable timezone
@@ -68,7 +69,11 @@ idf.py -p /dev/ttyUSB0 flash monitor
 
 ## Built With
 
-Thermy is built on [Strux](https://github.com/vanBassum/Strux), a reusable ESP32 application template that provides the touchscreen UI, web dashboard, MQTT/Home Assistant integration, and OTA update infrastructure out of the box. If you want to build your own ESP32 project with similar features, Strux is the place to start.
+Thermy is built on [Strux](https://github.com/vanBassum/Strux), a reusable ESP32 application template that provides the web dashboard, command/RPC layer, settings system, telemetry, relay-based remote access, and OTA update infrastructure out of the box. If you want to build your own ESP32 project with similar features, Strux is the place to start.
+
+Everything specific to Thermy is the DS18B20 `SensorManager`, the LVGL `DisplayManager` and its pages, and the `wt32_sc01` board folder — the rest is Strux and is kept diffable against it.
+
+> Earlier versions of Thermy shipped MQTT/Home Assistant integration and an on-flash circular log. Both are gone: devices that exist to live in Home Assistant are better served by ESPHome, and history is telemetry's job now. The last release with them is in the git history.
 
 ## License
 
