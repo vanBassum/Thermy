@@ -1,33 +1,11 @@
 #include "CommandManager.h"
-#include "ConsoleManager.h"
-#include "SettingsManager.h"
-#include "UpdateManager.h"
-#include "JsonWriter.h"
-#include "JsonHelpers.h"
+#include "JsonArgReader.h"
+#include "DescribeArgReader.h"
+#include "JsonScope.h"
+#include "Stream.h"
 #include "esp_log.h"
-#include "esp_app_desc.h"
-#include "esp_system.h"
-#include "esp_heap_caps.h"
-#include "NetworkManager.h"
-#include "SensorManager.h"
-#include "LogManager.h"
+#include <cstdio>
 #include <cstring>
-
-const CommandManager::CommandEntry CommandManager::commands_[] = {
-    { "ping",            &CommandManager::Cmd_Ping,            false },
-    { "info",            &CommandManager::Cmd_Info,            false },
-    { "updateStatus",    &CommandManager::Cmd_UpdateStatus,    false },
-    { "getSettings",     &CommandManager::Cmd_GetSettings,     false },
-    { "setSetting",      &CommandManager::Cmd_SetSetting,      true  },
-    { "saveSettings",    &CommandManager::Cmd_SaveSettings,    true  },
-    { "reboot",          &CommandManager::Cmd_Reboot,          true  },
-    { "wifiScan",        &CommandManager::Cmd_WifiScan,        false },
-    { "getLogs",         &CommandManager::Cmd_GetLogs,         false },
-    { "getTemperatures", &CommandManager::Cmd_GetTemperatures, false },
-    { "getLogEntries",   &CommandManager::Cmd_GetLogEntries,   false },
-    { "eraseLog",        &CommandManager::Cmd_EraseLog,        true  },
-    { nullptr, nullptr, false },
-};
 
 CommandManager::CommandManager(ServiceProvider& serviceProvider)
     : serviceProvider_(serviceProvider)
@@ -43,240 +21,217 @@ void CommandManager::Init()
         return;
     }
 
+    Register(this, commands_);
+
     initAttempt.SetReady();
     ESP_LOGI(TAG, "Initialized");
 }
 
-bool CommandManager::Execute(const char* type, const char* json, JsonWriter& resp)
+RequestError CommandManager::Execute(const char* category, const char* name,
+                                     Stream& in, Stream& out,
+                                     ConnectionAuth* connection,
+                                     const char** failedArg)
 {
-    for (int i = 0; commands_[i].type != nullptr; i++)
-    {
-        if (strcmp(type, commands_[i].type) == 0)
-        {
-            if (commands_[i].requiresAuth && !CheckAuth(json, resp))
-                return true;
+    const CommandEntry* e = Find(category, name);
+    if (e == nullptr)
+        return RequestError::UnknownCommand;
 
-            (this->*commands_[i].func)(json, resp);
-            return true;
-        }
+    // Handler runs OUTSIDE the lock: entries are immortal, so the pointer
+    // stays valid, and a handler may register commands or dispatch nested
+    // commands without deadlocking.
+    // Parse the arguments first, so the handler receives them already validated and
+    // `in` already positioned at the body. JsonArgs is the only thing in the request
+    // path holding a request-sized buffer — swapping in a token implementation here
+    // deletes it without touching a single handler.
+    JsonArgReader reader(in);
+    CommandContext ctx(reader, in, out, connection);
+    const RequestError err = e->handler(e->ctx, ctx);
+    if (err != RequestError::Ok && failedArg)
+        *failedArg = reader.failedArgument();
+    return err;
+}
+
+const char* DescribeRequestError(RequestError e, const char* arg, char* buf, size_t cap)
+{
+    switch (e)   // no default: a new RequestError must be handled here
+    {
+    case RequestError::Ok:              return "ok";
+    case RequestError::UnknownCommand:  return "unknown command";
+    case RequestError::MissingArgument:
+        snprintf(buf, cap, "missing required argument: %s", arg ? arg : "?");
+        return buf;
+    case RequestError::MalformedRequest:  return "malformed request";
+    case RequestError::MalformedNumber:
+        snprintf(buf, cap, "malformed number: %s", arg ? arg : "?");
+        return buf;
+    case RequestError::ArgumentTooLong:
+        snprintf(buf, cap, "argument too long: %s", arg ? arg : "?");
+        return buf;
+    case RequestError::Described:  return "described";   // help swallows this
+    }
+    return "bad request";
+}
+
+// ──────────────────────────────────────────────────────────────
+// help
+// ──────────────────────────────────────────────────────────────
+
+namespace {
+
+// The streams the described handler gets. It is stopped at its readArgs call, so
+// these exist to be unused — and to mean that a handler which somehow reaches its
+// body writes to nobody instead of to the client.
+class NullStream final : public Stream
+{
+public:
+    size_t write(const void*, size_t size, TickType_t = portMAX_DELAY) override { return size; }
+    size_t read(void*, size_t, TickType_t = portMAX_DELAY) override { return 0; }
+};
+
+} // namespace
+
+RequestError CommandManager::Cmd_Help(CommandContext& ctx)
+{
+    char category[MAX_ROUTE] = {};
+    char command[MAX_ROUTE]  = {};
+
+    RETURN_IF_ERROR(ctx.readArgs(
+        Optional("category", category),
+        Optional("command",  command)
+    ));
+
+    if (command[0] != '\0')
+        return DescribeCommand(category, command, ctx.out);
+
+    if (category[0] != '\0')
+        ListCategory(category, ctx.out);
+    else
+        ListCategories(ctx.out);
+
+    return RequestError::Ok;
+}
+
+void CommandManager::ListCategories(Stream& out)
+{
+    // Held across the JSON, so a manager registering from another task cannot relink
+    // the chain half way through the answer. Safe to write to `out` from under it:
+    // nothing acquires this mutex from inside a transport's send path, so there is no
+    // pair of locks to take in two orders.
+    LOCK(mutex_);
+
+    // The chain has no notion of a category, so collect the distinct ones first.
+    // Fixed array, and it says so when it fills up rather than quietly answering with
+    // part of the registry.
+    const char* seen[MAX_CATEGORIES];
+    size_t count = 0;
+    bool truncated = false;
+
+    for (const CommandEntry* e = head_; e != nullptr; e = e->next)
+    {
+        bool known = false;
+        for (size_t i = 0; i < count && !known; ++i)
+            known = strcmp(seen[i], e->category) == 0;
+        if (known) continue;
+
+        if (count == MAX_CATEGORIES) { truncated = true; break; }
+        seen[count++] = e->category;
     }
 
-    return false;
+    JsonObject resp(out);
+    resp.field("ok", true);
+    {
+        JsonArray cats = resp.array("categories");
+        for (size_t i = 0; i < count; ++i)
+        {
+            JsonObject cat = cats.object();
+            cat.field("category", seen[i]);
+            JsonArray names = cat.array("commands");
+            for (const CommandEntry* e = head_; e != nullptr; e = e->next)
+                if (strcmp(seen[i], e->category) == 0)
+                    names.value(e->name);
+        }
+    }
+    if (truncated)
+        resp.field("truncated", true);
 }
 
-bool CommandManager::CheckAuth(const char* json, JsonWriter& resp)
+void CommandManager::ListCategory(const char* category, Stream& out)
 {
-    char storedPin[64] = {};
-    serviceProvider_.getSettingsManager().getString("device.pin", storedPin, sizeof(storedPin));
+    LOCK(mutex_);   // see ListCategories
 
-    // No PIN configured — auth disabled
-    if (storedPin[0] == '\0')
-        return true;
+    JsonObject resp(out);
 
-    char pin[64] = {};
-    ExtractJsonString(json, "pin", pin, sizeof(pin));
+    bool found = false;
+    for (const CommandEntry* e = head_; e != nullptr && !found; e = e->next)
+        found = strcmp(category, e->category) == 0;
 
-    if (strcmp(pin, storedPin) == 0)
-        return true;
-
-    ESP_LOGW(TAG, "Auth failed for command");
-    resp.field("ok", false);
-    resp.field("error", "auth");
-    return false;
-}
-
-// ──────────────────────────────────────────────────────────────
-// Commands
-// ──────────────────────────────────────────────────────────────
-
-void CommandManager::Cmd_Ping(const char* json, JsonWriter& resp)
-{
-    resp.field("pong", true);
-}
-
-void CommandManager::Cmd_Info(const char* json, JsonWriter& resp)
-{
-    const esp_app_desc_t* app = esp_app_get_description();
-
-    resp.field("project", app->project_name);
-    resp.field("firmware", app->version);
-    resp.field("idf", app->idf_ver);
-    resp.field("date", app->date);
-    resp.field("time", app->time);
-    resp.field("chip", CONFIG_IDF_TARGET);
-    resp.field("heapFree", static_cast<uint32_t>(esp_get_free_heap_size()));
-    resp.field("heapMin", static_cast<uint32_t>(esp_get_minimum_free_heap_size()));
-}
-
-void CommandManager::Cmd_UpdateStatus(const char* json, JsonWriter& resp)
-{
-    const esp_app_desc_t* app = esp_app_get_description();
-    auto& update = serviceProvider_.getUpdateManager();
-
-    resp.field("firmware", app->version);
-    resp.field("running", update.GetRunningPartition());
-    resp.field("nextSlot", update.GetNextPartition());
-}
-
-void CommandManager::Cmd_GetSettings(const char* json, JsonWriter& resp)
-{
-    serviceProvider_.getSettingsManager().WriteAllSettings(resp);
-}
-
-void CommandManager::Cmd_SetSetting(const char* json, JsonWriter& resp)
-{
-    char key[64] = {};
-    char value[128] = {};
-    ExtractJsonString(json, "key", key, sizeof(key));
-    ExtractJsonString(json, "value", value, sizeof(value));
-
-    if (key[0] == '\0')
+    if (!found)
     {
         resp.field("ok", false);
-        resp.field("error", "missing key");
+        resp.field("error", "unknown category");
         return;
     }
 
-    auto& settings = serviceProvider_.getSettingsManager();
-    const auto* defs = settings.GetDefinitions();
-    int count = settings.GetDefinitionCount();
+    resp.field("ok", true);
+    resp.field("category", category);
+    JsonArray names = resp.array("commands");
+    for (const CommandEntry* e = head_; e != nullptr; e = e->next)
+        if (strcmp(category, e->category) == 0)
+            names.value(e->name);
+}
 
-    for (int i = 0; i < count; i++)
+RequestError CommandManager::DescribeCommand(const char* category, const char* command,
+                                             Stream& out)
+{
+    JsonObject resp(out);
+
+    if (category[0] == '\0')
     {
-        if (strcmp(defs[i].key, key) == 0)
-        {
-            switch (defs[i].type)
-            {
-            case SettingType::String:
-                settings.setString(key, value);
-                break;
-            case SettingType::Int:
-                settings.setInt(key, atoi(value));
-                break;
-            case SettingType::Bool:
-                settings.setBool(key, strcmp(value, "true") == 0 || strcmp(value, "1") == 0);
-                break;
-            }
-
-            resp.field("ok", true);
-            return;
-        }
+        // Routes are two words all the way down, so a command without its category
+        // is not a route. Meaning rather than form, so it goes in the reply.
+        resp.field("ok", false);
+        resp.field("error", "a command needs its category");
+        return RequestError::Ok;
     }
 
-    resp.field("ok", false);
-    resp.field("error", "unknown key");
-}
-
-void CommandManager::Cmd_SaveSettings(const char* json, JsonWriter& resp)
-{
-    bool ok = serviceProvider_.getSettingsManager().Save();
-    resp.field("ok", ok);
-}
-
-void CommandManager::Cmd_Reboot(const char* json, JsonWriter& resp)
-{
-    resp.field("ok", true);
-    // Delay to allow WS response to be sent before restarting
-    vTaskDelay(pdMS_TO_TICKS(500));
-    esp_restart();
-}
-
-void CommandManager::Cmd_WifiScan(const char* json, JsonWriter& resp)
-{
-    auto& wifi = serviceProvider_.getNetworkManager().wifi();
-
-    WiFiInterface::ScanResult results[20] = {};
-    int count = wifi.Scan(results, 20);
+    const CommandEntry* e = Find(category, command);
+    if (e == nullptr)
+    {
+        resp.field("ok", false);
+        resp.field("error", "unknown command");
+        return RequestError::Ok;
+    }
 
     resp.field("ok", true);
-    resp.fieldArray("networks");
+    resp.field("category", e->category);
+    resp.field("command", e->name);
 
-    for (int i = 0; i < count; i++)
+    // Not through Execute(): that one is the wire path — it builds the reader for
+    // today's format and reports which argument a parse tripped over. Here the reader
+    // IS the point, and there is no request to parse.
+    JsonArray args = resp.array("arguments");
+    DescribeArgReader reader(args);
+    NullStream sink;
+    CommandContext described(reader, sink, sink, nullptr);
+    const RequestError r = e->handler(e->ctx, described);
+
+    if (r != RequestError::Described)
     {
-        resp.beginObject();
-        resp.field("ssid", results[i].ssid);
-        resp.field("rssi", static_cast<int32_t>(results[i].rssi));
-        resp.field("channel", static_cast<int32_t>(results[i].channel));
-        resp.field("secure", results[i].secure);
-        resp.endObject();
+        // The handler returned without ever asking for its arguments, which means it
+        // ran its body — under help, against streams that go nowhere. Nothing here
+        // can undo that; the fix is a readArgs call in the handler.
+        ESP_LOGE(TAG, "'%s %s' declares no arguments — its body ran under help",
+                 e->category, e->name);
+        resp.field("declared", false);   // closes `args`
     }
-
-    resp.endArray();
+    return RequestError::Ok;
 }
 
-void CommandManager::Cmd_GetLogs(const char* json, JsonWriter& resp)
+const CommandEntry* CommandManager::Find(const char* category, const char* name)
 {
-    serviceProvider_.getConsoleManager().WriteHistory(resp);
+    LOCK(mutex_);
+    for (CommandEntry* e = head_; e != nullptr; e = e->next)
+        if (strcmp(name, e->name) == 0 && strcmp(category, e->category) == 0)
+            return e;
+    return nullptr;
 }
-
-void CommandManager::Cmd_GetTemperatures(const char* json, JsonWriter& resp)
-{
-    auto& sensors = serviceProvider_.getSensorManager();
-
-    resp.fieldArray("sensors");
-    for (int i = 0; i < 4; i++)
-    {
-        resp.beginObject();
-        resp.field("slot", static_cast<int32_t>(i));
-        resp.field("active", sensors.IsSlotActive(i));
-
-        char addrBuf[20] = {};
-        uint64_t addr = sensors.GetSlotAddress(i);
-        if (addr != 0)
-            snprintf(addrBuf, sizeof(addrBuf), "%016llX", addr);
-        resp.field("address", addrBuf);
-
-        resp.field("temperature", sensors.IsSlotActive(i) ? sensors.GetTemperature(i) : 0.0f);
-        resp.endObject();
-    }
-    resp.endArray();
-}
-
-void CommandManager::Cmd_GetLogEntries(const char* json, JsonWriter& resp)
-{
-    auto& logManager = serviceProvider_.getLogManager();
-    int32_t totalCount = static_cast<int32_t>(logManager.EntryCount());
-
-    int32_t offset = 0;
-    int32_t limit = 50;
-    ExtractJsonInt(json, "offset", offset);
-    ExtractJsonInt(json, "limit", limit);
-    if (offset < 0) offset = 0;
-    if (limit < 1) limit = 1;
-    if (limit > 200) limit = 200;
-
-    resp.field("entryCount", totalCount);
-    resp.field("offset", offset);
-    resp.field("limit", limit);
-    resp.fieldArray("entries");
-
-    auto view = logManager.Read();
-    int32_t idx = 0;
-    int32_t emitted = 0;
-    for (auto entry : view)
-    {
-        if (idx < offset) { idx++; continue; }
-        if (emitted >= limit) break;
-
-        resp.beginArray();
-        for (uint32_t f = 0; f < entry.fieldCount(); f++)
-        {
-            resp.beginArray();
-            resp.value(static_cast<int32_t>(entry.key<uint8_t>(f)));
-            resp.value(static_cast<int32_t>(entry.value<uint32_t>(f)));
-            resp.endArray();
-        }
-        resp.endArray();
-        idx++;
-        emitted++;
-    }
-
-    resp.endArray();
-}
-
-void CommandManager::Cmd_EraseLog(const char* json, JsonWriter& resp)
-{
-    bool ok = serviceProvider_.getLogManager().Erase();
-    resp.field("ok", ok);
-}
-

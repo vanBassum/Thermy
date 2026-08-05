@@ -1,13 +1,17 @@
 #include "WebServerManager.h"
-#include "CommandManager.h"
 #include "ConsoleManager.h"
-#include "LogManager.h"
-#include "UpdateManager.h"
+#include "SettingsManager.h"
+#include "CommandManager.h"
+#include "RelayManager.h"
+#include "JsonHelpers.h"
+#include "JsonScope.h"
+#include "SessionTable.h"
 
 #include <unistd.h>
+#include <cstdio>
+#include <cstring>
 #include <esp_log.h>
 #include <esp_vfs_fat.h>
-#include <esp_system.h>
 
 static constexpr const char* TAG = "WebServerManager";
 static constexpr const char* BASE_PATH = "/www";
@@ -31,19 +35,18 @@ void WebServerManager::Init()
 
     wsHandler_.SetCommandManager(serviceProvider_.getCommandManager());
 
+    serviceProvider_.getSettingsManager().Register({ &webPassword_ });
+    auth_.Init();   // snapshot the stored password (after registration)
+    wsHandler_.SetAuth(auth_);
+
     MountFatPartition();
     StartServer();
     RegisterRoutes();
 
+    serviceProvider_.getCommandManager().Register(this, commands_);
+
     // Wire console broadcast to WS clients
     serviceProvider_.getConsoleManager().SetBroadcastCallback(
-        [](const char* json, int32_t len, void* ctx) {
-            static_cast<WebServerManager*>(ctx)->Broadcast(json, len);
-        },
-        this);
-
-    // Wire log entry broadcast to WS clients
-    serviceProvider_.getLogManager().SetBroadcastCallback(
         [](const char* json, int32_t len, void* ctx) {
             static_cast<WebServerManager*>(ctx)->Broadcast(json, len);
         },
@@ -101,29 +104,10 @@ void WebServerManager::RegisterRoutes()
 {
     if (!server_) return;
 
-    // Upload endpoints (must be before wildcard)
-    const httpd_uri_t upload_app = {
-        .uri = "/api/upload/app",
-        .method = HTTP_POST,
-        .handler = HandleUploadApp,
-        .user_ctx = this,
-        .is_websocket = false,
-        .handle_ws_control_frames = false,
-        .supported_subprotocol = nullptr,
-    };
-    httpd_register_uri_handler(server_, &upload_app);
-
-    const httpd_uri_t upload_www = {
-        .uri = "/api/upload/www",
-        .method = HTTP_POST,
-        .handler = HandleUploadWww,
-        .user_ctx = this,
-        .is_websocket = false,
-        .handle_ws_control_frames = false,
-        .supported_subprotocol = nullptr,
-    };
-    httpd_register_uri_handler(server_, &upload_www);
-
+    // HTTP serves two things only: the WebSocket upgrade (which carries ALL
+    // device interaction — commands, uploads, downloads, auth) and the static
+    // app that bootstraps the page. No /api command route, no CORS: every
+    // device interaction is a session on the one socket.
     wsHandler_.RegisterRoute(server_);
     staticFileHandler_.RegisterRoute(server_, BASE_PATH);
 }
@@ -132,118 +116,115 @@ void WebServerManager::Broadcast(const char* json, int len)
 {
     if (server_)
         wsHandler_.Broadcast(server_, json, len);
+
+    // ConsoleManager holds a single broadcast callback, so the fan-out to the
+    // second transport happens here: relayed frontends get the same live log
+    // stream. No-op while the relay is disabled or disconnected.
+    serviceProvider_.getRelayManager().BroadcastLog(json, len);
+}
+
+void WebServerManager::BroadcastBinary(const uint8_t* data, size_t len)
+{
+    if (server_)
+        wsHandler_.BroadcastBinary(server_, data, len);
 }
 
 // ──────────────────────────────────────────────────────────────
-// Upload handlers
+// Commands
 // ──────────────────────────────────────────────────────────────
 
-esp_err_t WebServerManager::HandleUploadApp(httpd_req_t* req)
+RequestError WebServerManager::Cmd_GetWebFile(CommandContext& ctx)
 {
-    auto* self = static_cast<WebServerManager*>(req->user_ctx);
-    auto& update = self->serviceProvider_.getUpdateManager();
+    // First handler on the pull contract: no envelope handling, no JsonReader, and
+    // it will keep working unchanged when the request format stops being JSON.
+    char path[192] = {};
+    RETURN_IF_ERROR(ctx.readArgs(Required("path", path)));
 
-    ESP_LOGI(TAG, "App upload started (content-length: %d)", req->content_len);
+    StaticFileHandler::Resolved file;
+    FILE* f = nullptr;
 
-    if (!update.BeginAppUpdate())
+    if (StaticFileHandler::Resolve(BASE_PATH, path, file))
+        f = fopen(file.path, "rb");
+
+    if (!f)
     {
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to begin OTA");
-        return ESP_FAIL;
+        // A real 404 — SPA fallback is the asking route layer's decision, not
+        // ours (see StaticFileHandler::Resolve).
+        static constexpr const char* notFound = "{\"ok\":true,\"status\":404}\n";
+        ctx.out.write(notFound, strlen(notFound));
+        return RequestError::Ok;   // the request was fine; the file simply is not there
     }
 
-    char buf[1024];
-    int received = 0;
-    int total = 0;
+    char header[256];
+    int n = snprintf(header, sizeof(header),
+                     "{\"ok\":true,\"status\":200,\"contentType\":\"%s\"%s}\n",
+                     file.contentType,
+                     file.gzipped ? ",\"contentEncoding\":\"gzip\"" : "");
+    ctx.out.write(header, static_cast<size_t>(n));
 
-    while (total < req->content_len)
-    {
-        received = httpd_req_recv(req, buf, sizeof(buf));
-        if (received <= 0)
-        {
-            ESP_LOGE(TAG, "App upload recv error");
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Receive failed");
-            return ESP_FAIL;
-        }
+    // Streams out chunk-by-chunk through the session window; a 200 KB bundle
+    // never needs a 200 KB buffer here or on the transport.
+    char buf[512];
+    size_t r;
+    while ((r = fread(buf, 1, sizeof(buf), f)) > 0)
+        ctx.out.write(buf, r);
 
-        if (!update.WriteAppChunk(buf, received))
-        {
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Write failed");
-            return ESP_FAIL;
-        }
-
-        total += received;
-    }
-
-    const char* err = update.FinalizeAppUpdate();
-    if (err)
-    {
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, err);
-        return ESP_FAIL;
-    }
-
-    char resp[64];
-    int len = snprintf(resp, sizeof(resp), "{\"ok\":true,\"size\":%d}", total);
-    httpd_resp_set_type(req, "application/json");
-    httpd_resp_send(req, resp, len);
-
-    ESP_LOGI(TAG, "App upload complete (%d bytes), rebooting...", total);
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    esp_restart();
-
-    return ESP_OK;
+    fclose(f);
+    return RequestError::Ok;
 }
 
-esp_err_t WebServerManager::HandleUploadWww(httpd_req_t* req)
+// ──────────────────────────────────────────────────────────────
+// auth — the handshake as ordinary commands. Nothing here frames its own reply or
+// parses its own wire format any more; it is a handler like every other.
+// ──────────────────────────────────────────────────────────────
+
+RequestError WebServerManager::Cmd_AuthHello(CommandContext& ctx)
 {
-    auto* self = static_cast<WebServerManager*>(req->user_ctx);
-    auto& update = self->serviceProvider_.getUpdateManager();
+    RETURN_IF_ERROR(ctx.readArgs());
 
-    ESP_LOGI(TAG, "WWW upload started (content-length: %d)", req->content_len);
+    JsonObject resp(ctx.out);
+    resp.field("authRequired", auth_.AuthRequired());
+    return RequestError::Ok;
+}
 
-    if (!update.BeginWwwUpdate())
+RequestError WebServerManager::Cmd_AuthLogin(CommandContext& ctx)
+{
+    char password[64] = {};
+    RETURN_IF_ERROR(ctx.readArgs(Optional("password", password)));
+
+    JsonObject resp(ctx.out);
+
+    // A wrong password is MEANING, not form: the request was perfectly well made, the
+    // answer is no. So it is a reply, not a refusal.
+    if (!auth_.CheckPassword(password))
     {
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to begin WWW update");
-        return ESP_FAIL;
+        resp.field("ok", false);
+        return RequestError::Ok;
     }
 
-    char buf[1024];
-    int received = 0;
-    int total = 0;
+    char key[SessionTable::TOKEN_LEN] = {};
+    auth_.MintKey(key);
+    if (ctx.connection) ctx.connection->authenticate(key);
 
-    while (total < req->content_len)
+    resp.field("ok", true);
+    resp.field("key", key);
+    return RequestError::Ok;
+}
+
+RequestError WebServerManager::Cmd_AuthResume(CommandContext& ctx)
+{
+    char key[SessionTable::TOKEN_LEN] = {};
+    RETURN_IF_ERROR(ctx.readArgs(Required("key", key)));
+
+    JsonObject resp(ctx.out);
+
+    if (!auth_.ValidateKey(key))
     {
-        received = httpd_req_recv(req, buf, sizeof(buf));
-        if (received <= 0)
-        {
-            ESP_LOGE(TAG, "WWW upload recv error");
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Receive failed");
-            return ESP_FAIL;
-        }
-
-        if (!update.WriteWwwChunk(buf, received))
-        {
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Write failed");
-            return ESP_FAIL;
-        }
-
-        total += received;
+        resp.field("ok", false);
+        return RequestError::Ok;
     }
 
-    const char* err = update.FinalizeWwwUpdate();
-    if (err)
-    {
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, err);
-        return ESP_FAIL;
-    }
-
-    char resp[64];
-    int len = snprintf(resp, sizeof(resp), "{\"ok\":true,\"size\":%d}", total);
-    httpd_resp_set_type(req, "application/json");
-    httpd_resp_send(req, resp, len);
-
-    ESP_LOGI(TAG, "WWW upload complete (%d bytes), rebooting...", total);
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    esp_restart();
-
-    return ESP_OK;
+    if (ctx.connection) ctx.connection->authenticate(key);
+    resp.field("ok", true);
+    return RequestError::Ok;
 }

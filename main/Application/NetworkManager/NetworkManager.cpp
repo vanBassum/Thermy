@@ -1,7 +1,8 @@
 #include "NetworkManager.h"
 #include "SettingsManager.h"
-#include "LogManager.h"
-#include "DateTime.h"
+#include "SystemManager.h"
+#include "CommandManager.h"
+#include "JsonScope.h"
 #include "nvs_flash.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
@@ -37,12 +38,6 @@ void NetworkManager::Init()
         ESP_ERROR_CHECK(err);
     }
 
-    // mDNS — thermy.local
-    ESP_ERROR_CHECK(mdns_init());
-    mdns_hostname_set("thermy");
-    mdns_instance_name_set("Thermy");
-    mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
-
     // Reduce noisy WiFi/LWIP init logs
     esp_log_level_set("wifi", ESP_LOG_WARN);
     esp_log_level_set("wifi_init", ESP_LOG_WARN);
@@ -51,7 +46,17 @@ void NetworkManager::Init()
 
     wifi_interface_.SetEventHandler([this](const NetworkEvent& e) { HandleNetworkEvent(e); });
     wifi_interface_.Init();
-    wifi_interface_.SetHostname("thermy");
+
+    // Set hostname from the device name so it shows in the router
+    char deviceName[33] = {};
+    serviceProvider_.getSystemManager().GetDeviceName(deviceName, sizeof(deviceName));
+    wifi_interface_.SetHostname(deviceName);
+
+    // mDNS — <deviceName>.local
+    ESP_ERROR_CHECK(mdns_init());
+    mdns_hostname_set(deviceName);
+    mdns_instance_name_set(deviceName);
+    mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
 
     // Setup connect timeout timer
     connectTimer_.Init("sta_timeout", pdMS_TO_TICKS(StaConnectTimeoutMs), false);
@@ -72,13 +77,15 @@ void NetworkManager::Init()
         }
     });
 
+    serviceProvider_.getCommandManager().Register(this, commands_);
+    serviceProvider_.getSettingsManager().Register({ &wifiSsid_, &wifiPassword_ });
+
     initAttempt.SetReady();
     ESP_LOGI(TAG, "Initialized");
 
     // Load WiFi credentials from settings and try to connect
-    auto& settings = serviceProvider_.getSettingsManager();
-    settings.getString("wifi.ssid", staSsid_, sizeof(staSsid_));
-    settings.getString("wifi.password", staPassword_, sizeof(staPassword_));
+    wifiSsid_.Get(staSsid_, sizeof(staSsid_));
+    wifiPassword_.Get(staPassword_, sizeof(staPassword_));
 
     if (staSsid_[0] != '\0')
     {
@@ -138,16 +145,10 @@ void NetworkManager::HandleNetworkEvent(const NetworkEvent& event)
         if (!wifi_interface_.IsAP())
         {
             ESP_LOGI(TAG, "STA connected to AP");
-            serviceProvider_.getLogManager().Append(
-                LogKeys::TimeStamp, DateTime::Now(),
-                LogKeys::LogCode, static_cast<uint32_t>(LogCode::StaConnected));
         }
         else
         {
             ESP_LOGI(TAG, "AP started");
-            serviceProvider_.getLogManager().Append(
-                LogKeys::TimeStamp, DateTime::Now(),
-                LogKeys::LogCode, static_cast<uint32_t>(LogCode::ApStarted));
         }
         break;
 
@@ -155,44 +156,56 @@ void NetworkManager::HandleNetworkEvent(const NetworkEvent& event)
         if (!wifi_interface_.IsAP())
         {
             ESP_LOGW(TAG, "STA disconnected");
-            serviceProvider_.getLogManager().Append(
-                LogKeys::TimeStamp, DateTime::Now(),
-                LogKeys::LogCode, static_cast<uint32_t>(LogCode::StaDisconnected));
 
             if (staConnected_)
             {
+                // Was connected, lost connection — try to reconnect
                 staConnected_ = false;
                 staRetryCount_ = 0;
                 ESP_LOGI(TAG, "Lost connection, attempting reconnect");
-                serviceProvider_.getLogManager().Append(
-                    LogKeys::TimeStamp, DateTime::Now(),
-                    LogKeys::LogCode, static_cast<uint32_t>(LogCode::StaReconnecting));
                 esp_wifi_connect();
                 connectTimer_.Start();
             }
+            // If not yet connected, the timeout timer handles retries
         }
         break;
 
     case NetworkEventType::Ipv4Acquired:
-    {
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event.status.ipv4.ip));
         connectTimer_.Stop();
         staConnected_ = true;
         staRetryCount_ = 0;
-        uint32_t ip = event.status.ipv4.ip.addr;
-        serviceProvider_.getLogManager().Append(
-            LogKeys::TimeStamp, DateTime::Now(),
-            LogKeys::LogCode, static_cast<uint32_t>(LogCode::IpAcquired),
-            LogKeys::IpAddress, ip);
         break;
-    }
 
     case NetworkEventType::Ipv4Lost:
         ESP_LOGW(TAG, "Lost IP");
         staConnected_ = false;
-        serviceProvider_.getLogManager().Append(
-            LogKeys::TimeStamp, DateTime::Now(),
-            LogKeys::LogCode, static_cast<uint32_t>(LogCode::IpLost));
         break;
     }
+}
+
+// ──────────────────────────────────────────────────────────────
+// WebSocket commands
+// ──────────────────────────────────────────────────────────────
+
+RequestError NetworkManager::Cmd_WifiScan(CommandContext& ctx)
+{
+    WiFiInterface::ScanResult results[20] = {};
+    RETURN_IF_ERROR(ctx.readArgs());
+
+    int count = wifi().Scan(results, 20);
+
+    JsonObject root(ctx.out);
+    root.field("ok", true);
+    JsonArray networks = root.array("networks");
+
+    for (int i = 0; i < count; i++)
+    {
+        JsonObject n = networks.object();
+        n.field("ssid", results[i].ssid);
+        n.field("rssi", static_cast<int32_t>(results[i].rssi));
+        n.field("channel", static_cast<int32_t>(results[i].channel));
+        n.field("secure", results[i].secure);
+    }
+    return RequestError::Ok;
 }

@@ -1,6 +1,5 @@
 #include "TimeManager.h"
 #include "SettingsManager/SettingsManager.h"
-#include "LogManager/LogManager.h"
 #include "esp_log.h"
 #include "esp_netif_sntp.h"
 #include <ctime>
@@ -9,7 +8,6 @@ TimeManager *TimeManager::instance = nullptr;
 
 TimeManager::TimeManager(ServiceProvider &ctx)
     : serviceProvider_(ctx)
-    , settingsManager(ctx.getSettingsManager())
 {
 }
 
@@ -20,6 +18,8 @@ void TimeManager::Init()
         return;
 
     instance = this;
+
+    serviceProvider_.getSettingsManager().Register({ &ntpServerSetting_, &ntpTimezone_ });
 
     ApplyTimezone();
     LoadServerName();
@@ -32,25 +32,19 @@ void TimeManager::Init()
 void TimeManager::ApplyTimezone()
 {
     char tz[64] = {};
-    settingsManager.getString("ntp.timezone", tz, sizeof(tz));
+    ntpTimezone_.Get(tz, sizeof(tz));
+    if (tz[0] == '\0')
+        snprintf(tz, sizeof(tz), "UTC0");
 
-    if (tz[0] != '\0')
-    {
-        setenv("TZ", tz, 1);
-        tzset();
-        ESP_LOGI(TAG, "Timezone set to: %s", tz);
-    }
-    else
-    {
-        setenv("TZ", "UTC0", 1);
-        tzset();
-        ESP_LOGI(TAG, "No timezone configured, using UTC");
-    }
+    setenv("TZ", tz, 1);
+    tzset();
+    ESP_LOGI(TAG, "Timezone set to: %s", tz);
 }
 
 void TimeManager::LoadServerName()
 {
-    if (!settingsManager.getString("ntp.server", ntpServer, sizeof(ntpServer)) || ntpServer[0] == '\0')
+    ntpServerSetting_.Get(ntpServer, sizeof(ntpServer));
+    if (ntpServer[0] == '\0')
         snprintf(ntpServer, sizeof(ntpServer), "pool.ntp.org");
 }
 
@@ -58,7 +52,7 @@ void TimeManager::StartSntp()
 {
     ESP_LOGI(TAG, "Starting SNTP with server: %s", ntpServer);
 
-    // ntpServer is a member — pointer stays valid for the lifetime of the object
+    // ntpServer is a member - pointer stays valid for the lifetime of the object
     esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(ntpServer);
     config.sync_cb = TimeSyncCallback;
     config.start = true;
@@ -71,11 +65,6 @@ void TimeManager::TimeSyncCallback(struct timeval *tv)
         return;
 
     instance->synced = true;
-    instance->serviceProvider_.getLogManager().OnTimeSynced();
-
-    instance->serviceProvider_.getLogManager().Append(
-        LogKeys::TimeStamp, DateTime::Now(),
-        LogKeys::LogCode, static_cast<uint32_t>(LogCode::TimeSynced));
 
     char buf[32];
     DateTime now = DateTime::Now();
