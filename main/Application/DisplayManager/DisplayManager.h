@@ -1,9 +1,10 @@
 #pragma once
 #include "ServiceProvider.h"
+#include "InitState.h"
+#include "TypedSettings.h"
 #include "rtos.h"
 #include "esp_log.h"
 #include "esp_timer.h"
-#include "Display_WT32SC01.h"
 #include "lvgl.h"
 
 #include "HomePage.h"
@@ -13,6 +14,13 @@
 #include "GraphPage.h"
 #include "SystemPage.h"
 
+// ──────────────────────────────────────────────────────────────
+// The local touch UI: LVGL on the board's panel, a stack of pages, and the
+// "new probe found — where is it?" popup.
+//
+// The panel itself belongs to the Board (Board::GetDisplay); this manager only
+// drives LVGL on top of it. That is why it initialises after the Board.
+// ──────────────────────────────────────────────────────────────
 class DisplayManager
 {
     inline static constexpr const char *TAG = "DisplayManager";
@@ -22,12 +30,18 @@ class DisplayManager
 
 public:
     explicit DisplayManager(ServiceProvider &ctx);
+
+    DisplayManager(const DisplayManager &) = delete;
+    DisplayManager &operator=(const DisplayManager &) = delete;
+    DisplayManager(DisplayManager &&) = delete;
+    DisplayManager &operator=(DisplayManager &&) = delete;
+
     void Init();
 
 private:
+    ServiceProvider &serviceProvider_;
     SensorManager &sensorManager;
     InitState initState;
-    Display_WT32SC01 display;
     Task task;
     esp_timer_handle_t lvglTickTimer = nullptr;
 
@@ -55,4 +69,10 @@ private:
     void OnSlotSelected(int slot);
     void AutoAssignToFirstEmpty();
     static void PopupEventCb(lv_event_t *e);
+
+    // ── Settings (registered with SettingsManager in Init) ──
+    // The on-device chart's Y range. Owned here because the chart is this
+    // manager's, and read by HomePage/GraphPage through the registry.
+    inline static Int32Setting graphMin_{ "graph.min", "Graph Y Min (°C)", 0 };
+    inline static Int32Setting graphMax_{ "graph.max", "Graph Y Max (°C)", 100 };
 };

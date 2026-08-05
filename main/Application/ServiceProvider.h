@@ -1,16 +1,15 @@
 #pragma once
 
+class Board;
 class CommandManager;
-class DeviceManager;
-class DisplayManager;
-class HomeAssistantManager;
 class ConsoleManager;
-class LogManager;
-class MqttManager;
+class DisplayManager;
 class NetworkManager;
+class RelayManager;
 class SensorManager;
 class SettingsManager;
-class MonitorManager;
+class SystemManager;
+class TelemetryManager;
 class TimeManager;
 class UpdateManager;
 class WebServerManager;
@@ -18,17 +17,16 @@ class WebServerManager;
 class ServiceProvider
 {
 public:
+    virtual Board& getBoard() = 0;
     virtual CommandManager& getCommandManager() = 0;
-    virtual DeviceManager& getDeviceManager() = 0;
-    virtual DisplayManager& getDisplayManager() = 0;
-    virtual HomeAssistantManager& getHomeAssistantManager() = 0;
     virtual ConsoleManager& getConsoleManager() = 0;
-    virtual LogManager& getLogManager() = 0;
-    virtual MqttManager& getMqttManager() = 0;
+    virtual DisplayManager& getDisplayManager() = 0;
     virtual NetworkManager& getNetworkManager() = 0;
+    virtual RelayManager& getRelayManager() = 0;
     virtual SensorManager& getSensorManager() = 0;
     virtual SettingsManager& getSettingsManager() = 0;
-    virtual MonitorManager& getMonitorManager() = 0;
+    virtual SystemManager& getSystemManager() = 0;
+    virtual TelemetryManager& getTelemetryManager() = 0;
     virtual TimeManager& getTimeManager() = 0;
     virtual UpdateManager& getUpdateManager() = 0;
     virtual WebServerManager& getWebServerManager() = 0;

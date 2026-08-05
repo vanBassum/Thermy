@@ -56,8 +56,8 @@ void HomePage::OnCreate()
     // Chart
     static constexpr lv_coord_t chartY = slotY + slotH + 6;
     lv_coord_t chartH = LCD_VRES - chartY - 6;
-    int32_t graphMin = settingsManager.getInt("graph.min", 0);
-    int32_t graphMax = settingsManager.getInt("graph.max", 100);
+    int32_t graphMin = ReadSettingInt(settingsManager, "graph.min", 0);
+    int32_t graphMax = ReadSettingInt(settingsManager, "graph.max", 100);
 
     chart = lv_chart_create(panel);
     lv_obj_set_size(chart, LCD_HRES - 2 * slotMargin, chartH);

@@ -1,6 +1,6 @@
 #include "WifiPage.h"
-#include "SettingsManager/SettingsManager.h"
-#include "NetworkManager/NetworkManager.h"
+#include "SettingsManager.h"
+#include "NetworkManager.h"
 #include <cstdio>
 #include <cstring>
 
@@ -31,7 +31,7 @@ void WifiPage::OnCreate()
 
     // Password
     char passBuf[65] = {};
-    settingsManager.getString("wifi.password", passBuf, sizeof(passBuf));
+    ReadSettingText(settingsManager, "wifi.password", passBuf, sizeof(passBuf));
     passwordTa = AddTextRow(LV_SYMBOL_EYE_CLOSE " Pass", passBuf, 180, 64, true);
 
     // Save & Reboot
@@ -65,7 +65,7 @@ void WifiPage::RunScan()
     }
 
     char currentSsid[33] = {};
-    settingsManager.getString("wifi.ssid", currentSsid, sizeof(currentSsid));
+    ReadSettingText(settingsManager, "wifi.ssid", currentSsid, sizeof(currentSsid));
 
     for (int i = 0; i < count; i++)
     {
@@ -96,7 +96,7 @@ void WifiPage::RunScan()
 
 void WifiPage::SelectNetwork(const char *ssid)
 {
-    settingsManager.setString("wifi.ssid", ssid);
+    WriteSettingText(settingsManager, "wifi.ssid", ssid);
 
     // Update row highlights without rescanning
     uint32_t count = lv_obj_get_child_cnt(listArea);
@@ -160,6 +160,6 @@ void WifiPage::SaveCb(lv_event_t *e)
 {
     auto *self = static_cast<WifiPage *>(lv_event_get_user_data(e));
     const char *pass = lv_textarea_get_text(self->passwordTa);
-    self->settingsManager.setString("wifi.password", pass);
+    WriteSettingText(self->settingsManager, "wifi.password", pass);
     self->SaveAndReboot(self->settingsManager);
 }

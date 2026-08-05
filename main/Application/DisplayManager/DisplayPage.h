@@ -1,10 +1,13 @@
 #pragma once
 #include "lvgl.h"
 #include "esp_log.h"
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 
 class ServiceProvider;
 class SettingsManager;
+struct Setting;
 
 using NavigateFunc = std::function<void(const char *)>;
 
@@ -174,4 +177,31 @@ protected:
     }
 
     void SaveAndReboot(SettingsManager &settings);
+
+    // ── Settings access ──────────────────────────────────────
+    //
+    // A registered setting is private to the manager that owns it — there is no
+    // getInt(key) any more, deliberately. The one public way in is the registry
+    // chain, which is the same route the generated web settings UI takes (see
+    // SettingsManager::Cmd_GetSettings). These helpers give the LVGL pages that
+    // route, so a page can edit a setting without its owner having to expose it
+    // and without the page knowing the setting's type.
+    //
+    // A key that is not registered is a typo in this file: it logs an error and
+    // reads as empty / ignores the write, rather than inventing a value.
+
+    static Setting *FindSetting(SettingsManager &settings, const char *key);
+
+    /// Current value rendered as text, whatever the underlying type.
+    static void ReadSettingText(SettingsManager &settings, const char *key,
+                                char *out, size_t cap);
+
+    /// Parse `text` according to the setting's declared type and store it.
+    /// Not committed to NVS until SettingsManager::Save() (i.e. SaveAndReboot).
+    static void WriteSettingText(SettingsManager &settings, const char *key,
+                                 const char *text);
+
+    /// Numeric read for pages that need an int (chart ranges), with `def` when
+    /// the key is missing or not numeric.
+    static int32_t ReadSettingInt(SettingsManager &settings, const char *key, int32_t def);
 };

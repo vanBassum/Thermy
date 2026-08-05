@@ -1,4 +1,6 @@
 #include "DisplayManager.h"
+#include "SettingsManager.h"
+#include "Board.h"
 #include <algorithm>
 #include <cinttypes>
 #include <cstring>
@@ -12,7 +14,8 @@ static const lv_color_t channelColors[4] = {
 static const char *slotNames[4] = {"Red", "Blue", "Green", "Yellow"};
 
 DisplayManager::DisplayManager(ServiceProvider &ctx)
-    : sensorManager(ctx.getSensorManager())
+    : serviceProvider_(ctx)
+    , sensorManager(ctx.getSensorManager())
     , homePage(ctx.getNetworkManager(), ctx.getSensorManager(), ctx.getSettingsManager())
     , wifiPage(ctx.getSettingsManager(), ctx.getNetworkManager())
     , sensorPage(ctx.getSettingsManager(), ctx.getSensorManager())
@@ -36,8 +39,12 @@ void DisplayManager::Init()
 
     ESP_LOGI(TAG, "Initializing DisplayManager...");
 
-    lv_init();
-    display.Init();
+    serviceProvider_.getSettingsManager().Register({ &graphMin_, &graphMax_ });
+
+    // No lv_init() here: the panel driver has to register an LVGL display
+    // driver to exist at all, so it calls lv_init() itself, and the Board
+    // brought the panel up before this manager ran. Calling it again here
+    // would re-initialise LVGL underneath a registered display.
 
     const esp_timer_create_args_t tickTimerArgs = {
         .callback = LvglTickCb,

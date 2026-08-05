@@ -1,8 +1,12 @@
 #include "SensorPage.h"
-#include "SettingsManager/SettingsManager.h"
-#include "SensorManager/SensorManager.h"
+#include "SettingsManager.h"
+#include "SensorManager.h"
 #include <cstdio>
 #include <cstdlib>
+
+// Edited keys in text-row order — SaveCb pairs textareas against this table.
+static const char *const kKeys[] = { "sensor.scan", "sensor.read", "sensor.telem" };
+static constexpr int kKeyCount = sizeof(kKeys) / sizeof(kKeys[0]);
 
 void SensorPage::OnCreate()
 {
@@ -10,11 +14,14 @@ void SensorPage::OnCreate()
 
     char buf[16];
 
-    snprintf(buf, sizeof(buf), "%ld", settingsManager.getInt("sensor.scan", 5000));
+    ReadSettingText(settingsManager, "sensor.scan", buf, sizeof(buf));
     AddTextRow("Scan (ms)", buf, 50, 8);
 
-    snprintf(buf, sizeof(buf), "%ld", settingsManager.getInt("sensor.read", 1000));
+    ReadSettingText(settingsManager, "sensor.read", buf, sizeof(buf));
     AddTextRow("Read (ms)", buf, 90, 8);
+
+    ReadSettingText(settingsManager, "sensor.telem", buf, sizeof(buf));
+    AddTextRow("Telemetry (s)", buf, 130, 8);
 
     lv_obj_t *clearBtn = AddButton(LV_SYMBOL_TRASH " Clear All Assignments",
                                     lv_palette_main(LV_PALETTE_DEEP_ORANGE), 220, 40, ClearCb);
@@ -37,15 +44,15 @@ void SensorPage::SaveCb(lv_event_t *e)
 {
     auto *self = static_cast<SensorPage *>(lv_event_get_user_data(e));
 
-    static const char *keys[] = {"sensor.scan", "sensor.read"};
     int keyIdx = 0;
     uint32_t count = lv_obj_get_child_cnt(self->panel);
-    for (uint32_t i = 0; i < count && keyIdx < 2; i++)
+    for (uint32_t i = 0; i < count && keyIdx < kKeyCount; i++)
     {
         lv_obj_t *child = lv_obj_get_child(self->panel, i);
         if (lv_obj_check_type(child, &lv_textarea_class))
         {
-            self->settingsManager.setInt(keys[keyIdx], atoi(lv_textarea_get_text(child)));
+            WriteSettingText(self->settingsManager, kKeys[keyIdx],
+                             lv_textarea_get_text(child));
             keyIdx++;
         }
     }
