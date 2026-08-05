@@ -1,6 +1,7 @@
 #include "Display_WT32SC01.h"
 #include "esp_lcd_st7796.h"
 #include "esp_lcd_touch_ft5x06.h"
+#include "esp_heap_caps.h"
 #include <cassert>
 
 Display_WT32SC01::~Display_WT32SC01()
@@ -9,27 +10,35 @@ Display_WT32SC01::~Display_WT32SC01()
         esp_lcd_panel_del(panel);
     if (touch)
         esp_lcd_touch_del(touch);
-    free(buf1);
-    free(buf2);
+    heap_caps_free(buf1);
+    heap_caps_free(buf2);
 }
 
 void Display_WT32SC01::Init()
 {
     ESP_LOGI(TAG, "Initializing WT32-SC01 display");
 
+    // LVGL first: this driver's entire output is a registered LVGL display and
+    // input device, so it cannot come up before LVGL has. Owning the call here
+    // rather than in DisplayManager is what keeps the ordering correct now that
+    // the Board brings the panel up before any application manager runs.
+    lv_init();
+
     // --- SPI bus for LCD ---
     spi_bus_config_t buscfg = {};
-    buscfg.sclk_io_num = LCD_CLK;
-    buscfg.mosi_io_num = LCD_MOSI;
+    buscfg.sclk_io_num = BoardConfig::LCD_CLK;
+    buscfg.mosi_io_num = BoardConfig::LCD_MOSI;
     buscfg.miso_io_num = -1;
+    buscfg.quadwp_io_num = -1;
+    buscfg.quadhd_io_num = -1;
     buscfg.max_transfer_sz = LCD_HRES * 40 * sizeof(uint16_t);
     ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
     // --- SPI IO config ---
     esp_lcd_panel_io_handle_t io;
     esp_lcd_panel_io_spi_config_t io_cfg = {};
-    io_cfg.dc_gpio_num = LCD_DC;
-    io_cfg.cs_gpio_num = LCD_CS;
+    io_cfg.dc_gpio_num = BoardConfig::LCD_DC;
+    io_cfg.cs_gpio_num = BoardConfig::LCD_CS;
     io_cfg.pclk_hz = 40 * 1000 * 1000;
     io_cfg.lcd_cmd_bits = 8;
     io_cfg.lcd_param_bits = 8;
@@ -38,7 +47,7 @@ void Display_WT32SC01::Init()
 
     // --- ST7796 panel config ---
     esp_lcd_panel_dev_config_t panel_cfg = {};
-    panel_cfg.reset_gpio_num = LCD_RST;
+    panel_cfg.reset_gpio_num = BoardConfig::LCD_RST;
     panel_cfg.rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR;
     panel_cfg.bits_per_pixel = 16;
 
@@ -81,8 +90,8 @@ void Display_WT32SC01::InitTouch()
     i2c_master_bus_config_t i2c_bus_cfg = {};
     i2c_bus_cfg.clk_source = I2C_CLK_SRC_DEFAULT;
     i2c_bus_cfg.i2c_port = I2C_NUM_0;
-    i2c_bus_cfg.sda_io_num = TOUCH_SDA;
-    i2c_bus_cfg.scl_io_num = TOUCH_SCL;
+    i2c_bus_cfg.sda_io_num = BoardConfig::TOUCH_SDA;
+    i2c_bus_cfg.scl_io_num = BoardConfig::TOUCH_SCL;
     i2c_bus_cfg.glitch_ignore_cnt = 7;
     i2c_bus_cfg.flags.enable_internal_pullup = true;
     ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &i2cBus));
@@ -110,7 +119,7 @@ void Display_WT32SC01::InitTouch()
     tp_cfg.x_max = LCD_VRES;
     tp_cfg.y_max = LCD_HRES;
     tp_cfg.rst_gpio_num = GPIO_NUM_NC;
-    tp_cfg.int_gpio_num = TOUCH_INT;
+    tp_cfg.int_gpio_num = BoardConfig::TOUCH_INT;
     tp_cfg.levels.interrupt = 0;
     tp_cfg.flags.swap_xy = true;
     tp_cfg.flags.mirror_x = true;
@@ -135,7 +144,6 @@ void Display_WT32SC01::InitTouch()
     ESP_LOGI(TAG, "FT6336 touch initialized successfully");
 }
 
-
 void Display_WT32SC01::LvglTouchCb(lv_indev_drv_t *drv, lv_indev_data_t *data)
 {
     auto *self = static_cast<Display_WT32SC01 *>(drv->user_data);
@@ -146,21 +154,24 @@ void Display_WT32SC01::LvglTouchCb(lv_indev_drv_t *drv, lv_indev_data_t *data)
 
     uint16_t x, y;
     uint8_t points = 1;
-    if (esp_lcd_touch_get_coordinates(self->touch, &x, &y, NULL, &points, 1) && points > 0) {
+    if (esp_lcd_touch_get_coordinates(self->touch, &x, &y, NULL, &points, 1) && points > 0)
+    {
         data->point.x = x;
         data->point.y = y;
         data->state = LV_INDEV_STATE_PRESSED;
         ESP_LOGD(TAG, "Touch: x=%d y=%d", x, y);
-    } else {
+    }
+    else
+    {
         data->state = LV_INDEV_STATE_RELEASED;
     }
 }
 
-
 void Display_WT32SC01::LvglFlushCb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_p)
 {
     auto *self = static_cast<Display_WT32SC01 *>(drv->user_data);
-    if (!self || !self->panel) {
+    if (!self || !self->panel)
+    {
         lv_disp_flush_ready(drv);
         return;
     }
@@ -177,7 +188,6 @@ void Display_WT32SC01::LvglFlushCb(lv_disp_drv_t *drv, const lv_area_t *area, lv
     lv_disp_flush_ready(drv);
 }
 
-
 void Display_WT32SC01::InitBacklight()
 {
     ledc_timer_config_t tcfg = {};
@@ -189,7 +199,7 @@ void Display_WT32SC01::InitBacklight()
     ESP_ERROR_CHECK(ledc_timer_config(&tcfg));
 
     ledc_channel_config_t ccfg = {};
-    ccfg.gpio_num = LCD_BL;
+    ccfg.gpio_num = BoardConfig::LCD_BL;
     ccfg.speed_mode = LEDC_LOW_SPEED_MODE;
     ccfg.channel = LEDC_CHANNEL_0;
     ccfg.timer_sel = LEDC_TIMER_0;

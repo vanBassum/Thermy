@@ -1,0 +1,14 @@
+# ESP-IDF Partition Table — WT32-SC01 (16 MB flash)
+#
+# Two 3 MB app slots (the LVGL + web + relay build does not fit in Strux's
+# 1.5 MB default) and the rest to the FAT image holding the built frontend.
+# The old `logdata` partition is gone with the on-flash log — history is
+# telemetry now.
+#
+# Name,     Type,   SubType,    Offset,     Size,       Flags
+nvs,        data,   nvs,        0x9000,     0x6000,
+otadata,    data,   ota,        0xf000,     0x2000,
+phy_init,   data,   phy,        0x11000,    0x1000,
+ota_0,      app,    ota_0,      0x20000,    0x300000,
+ota_1,      app,    ota_1,      0x320000,   0x300000,
+www,        data,   fat,        0x620000,   0x9E0000,

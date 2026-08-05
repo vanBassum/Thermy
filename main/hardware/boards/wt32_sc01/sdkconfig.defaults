@@ -1,0 +1,30 @@
+# ──────────────────────────────────────────────────────────────
+# Board overlay: WT32-SC01
+#
+# Overlays the common root sdkconfig.defaults and WINS on conflicts (the root
+# CMakeLists appends this file to SDKCONFIG_DEFAULTS after the common one).
+# Everything here is true of this board's silicon, not of the project.
+# ──────────────────────────────────────────────────────────────
+
+# 16 MB flash, not the 4 MB the common defaults assume.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# ...which needs its own partition table: the common one is sized for 4 MB.
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="main/hardware/boards/wt32_sc01/partitions.csv"
+
+# ESP32-WROVER-B has 4 MB of quad PSRAM. The LVGL draw buffers are DMA-capable
+# internal RAM by choice, but the web server and TLS both breathe easier with it.
+#
+# No CONFIG_SPIRAM_MODE_QUAD here: quad is the only mode the ESP32 has, so IDF 6
+# does not expose the symbol and setting it only produces a kconfig warning.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_USE_CAPS_ALLOC=y
+
+# ── LVGL ──────────────────────────────────────────────────────
+# The ST7796 takes RGB565 byte-swapped over SPI.
+CONFIG_LV_COLOR_16_SWAP=y
+
+# Fonts the pages actually name (14 is on by default).
+CONFIG_LV_FONT_MONTSERRAT_10=y
+CONFIG_LV_FONT_MONTSERRAT_20=y
+CONFIG_LV_FONT_MONTSERRAT_28=y
