@@ -14,15 +14,41 @@ so there is no merge path — every sync is a hand port. Read Strux's own `CLAUD
 framework's architecture; it is the authority, and this file only records what Thermy adds
 or changes.
 
-**Keep the framework diffable against Strux.** Anything under `main/Application/` except
-`SensorManager/` and `DisplayManager/`, plus all of `main/lib/`, should stay byte-identical
-to upstream where possible, so the next sync is a diff and not an archaeology exercise. If
-a framework file must change for Thermy, say so in a comment at the change.
+### Three layers, and the sync boundary runs between them
+
+Since 2026-08-06 the tree is split into the three layers Strux uses, bottom to top:
+
+| Folder | Layer | Owns |
+| --- | --- | --- |
+| `main/hardware/` | board | the WT32-SC01's drivers; depends on nothing above it |
+| `main/strux/` | framework | every Strux manager, and their init order |
+| `main/app/` | application | Thermy: `SensorManager`, `DisplayManager` |
+| `main/lib/` | — | the substrate all three stand on; not a layer |
+
+Each layer is a **context** that owns the instances and a **provider** that says what the
+layer above may reach for: `BoardContext`/`BoardProvider`, `StruxContext`/`StruxProvider`,
+`AppContext`/`AppProvider`. A manager takes exactly one reference — its own layer's
+provider — and finds everything through it. `main.cpp` is four calls; the init **order**
+within a layer lives in that layer's context, so pulling a new Strux manager brings its
+position along with it.
+
+Nothing in `main/strux/` may reach up into `main/app/`. When the framework needs something
+from Thermy, Thermy **registers** it (a command, a setting, a telemetry point) from its own
+`Init()`. `StruxProvider` deliberately has no `getBoard()`.
+
+**Keep the framework diffable against Strux.** `main/strux/` and `main/lib/` (bar
+`core_utils.h`) are currently **byte-identical** to upstream and should stay that way, so
+the next sync is `diff -r` and not an archaeology exercise. If a framework file must change
+for Thermy, say so in a comment at the change.
+
+Every folder is on the include path, so headers are included by name alone — which means an
+include cannot show a layering violation. Reviewing the tree is the only audit.
 
 ### What is Thermy's, not Strux's
 
-- `main/Application/SensorManager/` — DS18B20 probes in four slots
-- `main/Application/DisplayManager/` — LVGL UI and its six pages
+- `main/app/` — `AppContext`/`AppProvider`, `SensorManager/` (DS18B20 probes in four
+  slots), `DisplayManager/` (LVGL UI and its six pages). Strux's `app/LedManager` example
+  was not ported.
 - `main/hardware/boards/wt32_sc01/` — the only board, including its panel driver
 - `frontend/src/pages/TemperaturePage.tsx` and the sensor API in `frontend/src/lib/backend.ts`
 - `main/lib/common/core_utils.h` — two tick-arithmetic helpers Strux does not have
@@ -32,9 +58,9 @@ a framework file must change for Thermy, say so in a comment at the change.
 MQTT, Home Assistant, `LogManager` and the `flash_log` component were **removed**, not
 ported (2026-08-05). Devices that exist to live in Home Assistant are better served by
 ESPHome, and time-series history is `TelemetryManager`'s job now — a manager records a
-point, the relay ships it to InfluxDB. `DeviceManager` is gone too: the per-board `Board`
-class replaced its role. Do not reintroduce any of them; the last versions are in git
-history.
+point, the relay ships it to InfluxDB. `DeviceManager` is gone too: the per-board
+`BoardContext` replaced its role. Do not reintroduce any of them; the last versions are in
+git history.
 
 ## Build commands
 
@@ -81,19 +107,24 @@ command that enumerates the device's whole RPC surface.
 
 ### The board owns the hardware, including LVGL's display
 
-`Board` (`main/hardware/boards/wt32_sc01/`) owns the 1-Wire bus host and the
-`Display_WT32SC01` panel driver, and `main.cpp` initialises it before any application
-manager. Two consequences worth knowing:
+`BoardContext` (`main/hardware/boards/wt32_sc01/`) owns the 1-Wire bus host and the
+`Display_WT32SC01` panel driver, and `main.cpp` initialises the whole board layer first.
+Three consequences worth knowing:
 
 - **The panel driver calls `lv_init()` itself**, not `DisplayManager`. Registering an LVGL
   display driver is the whole point of the driver, so it cannot run before LVGL is up, and
-  the Board runs first. `DisplayManager` deliberately does not call `lv_init()`.
+  the board runs first. `DisplayManager` deliberately does not call `lv_init()`.
 - **The panel driver lives in the board folder, not `hardware/drivers/`.** `drivers/` is
   for board-*independent* chip drivers; this one is this board's panel, wired one way, and
   no sibling board would share it. It is compiled in via `BOARD_SOURCES` in `board.cmake`.
+- **`GetDisplay()` and `GetOneWireBus()` stay off `BoardProvider`.** That interface carries
+  roles every board owes (`GetLed()`, bound here to a `MockLed` — no LED is fitted). The
+  two concrete accessors are the escape hatch, checked at compile time, which is what stops
+  the role list becoming the union of every board's peripherals.
 
-`SensorManager` borrows the bus with `getBoard().GetOneWireBus()` and never names a GPIO.
-A null bus is not fatal — the probes read as inactive and the rest of the device works.
+`SensorManager` borrows the bus with `app_.getBoard().GetOneWireBus()` and never names a
+GPIO. A null bus is not fatal — the probes read as inactive and the rest of the device
+works.
 
 ### The LVGL pages reach settings through the registry
 
@@ -127,11 +158,14 @@ not. This is the single easiest way to brick a boot here.
 
 ## Conventions
 
-Strux's apply — C++17, `snprintf` with `sizeof` bounds, JSON via `lib/json/JsonWriter.h`
-and `JsonReader`/`JsonScope.h`, commands as per-manager `CommandEntry[]` tables registered
-in `Init()`. New Thermy code follows Strux's naming (`serviceProvider_`, `initState_`,
-trailing-underscore members), which is why `SensorManager` was renamed that way during the
-port even though the old code did not use it.
+Strux's apply — C++17, `snprintf` with `sizeof` bounds, commands as per-manager
+`CommandEntry[]` tables registered in `Init()`, trailing-underscore members
+(`initState_`, and `app_` for an app manager's `AppProvider&`).
+
+A command handler names the **shape** of its reply and never the wire format:
+`auto resp = ctx.reply.object();`, then `resp.field(...)`. `JsonScope.h` is gone — see
+`lib/protocol/ReplyWriter.h`. `ctx.out` is still reachable for raw bytes alongside a
+reply, which is how `getWebFile` writes a header record and then streams a file body.
 
 Switches over `SettingType` have no `default` case on purpose — `-Werror=switch` then
 breaks every converter when a type is added.

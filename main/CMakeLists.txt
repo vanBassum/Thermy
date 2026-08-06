@@ -1,61 +1,84 @@
-set(SOURCE_FILES_LIST
-    "main.cpp"
-    "Application/NetworkManager/NetworkManager.cpp"
-    "Application/NetworkManager/NetworkInterface.cpp"
-    "Application/NetworkManager/WiFiInterface.cpp"
-    "Application/NetworkManager/DnsConfiguration.cpp"
-    "Application/WebServerManager/WebServerManager.cpp"
-    "Application/WebServerManager/Authenticator.cpp"
-    "Application/WebServerManager/StaticFileHandler.cpp"
-    "Application/WebServerManager/WebSocketHandler.cpp"
-    "Application/WebServerManager/ConnectionRegistry.cpp"
-    "Application/WebServerManager/SessionTable.cpp"
-    "Application/RelayManager/RelayManager.cpp"
-    "Application/RelayManager/RelaySocket.cpp"
-    "Application/TelemetryManager/TelemetryManager.cpp"
-    "Application/CommandManager/CommandManager.cpp"
-    "Application/UpdateManager/UpdateManager.cpp"
-    "Application/UpdateManager/PartitionWriter.cpp"
-    "Application/SettingsManager/SettingsManager.cpp"
-    "Application/SettingsManager/Setting.cpp"
-    "Application/SystemManager/SystemManager.cpp"
-    "Application/ConsoleManager/ConsoleManager.cpp"
-    "Application/TimeManager/TimeManager.cpp"
-    "Application/SensorManager/SensorManager.cpp"
-    "Application/DisplayManager/DisplayManager.cpp"
-    "Application/DisplayManager/DisplayPage.cpp"
-    "Application/DisplayManager/HomePage.cpp"
-    "Application/DisplayManager/SettingsMenuPage.cpp"
-    "Application/DisplayManager/WifiPage.cpp"
-    "Application/DisplayManager/SensorPage.cpp"
-    "Application/DisplayManager/GraphPage.cpp"
-    "Application/DisplayManager/SystemPage.cpp"
+# ── The substrate every layer stands on: RTOS wrappers, streams, JSON, the
+# request/reply seam, date and time. NOT part of the framework — the board layer uses
+# InitState and the application uses Timer, and both would be reaching inside strux/ to
+# get them if this lived there. Nothing in here knows about a layer; that is the test
+# for whether a thing belongs.
+set(LIB_SOURCES
     "lib/system/DateTime.cpp"
     "lib/system/TimeSpan.cpp"
 )
 
+# ── The framework. Pulled from the Strux template; Thermy should not need to touch
+# this list, which is why it is kept apart from the application's.
+set(STRUX_SOURCES
+    "strux/NetworkManager/NetworkManager.cpp"
+    "strux/NetworkManager/NetworkInterface.cpp"
+    "strux/NetworkManager/WiFiInterface.cpp"
+    "strux/NetworkManager/DnsConfiguration.cpp"
+    "strux/WebServerManager/WebServerManager.cpp"
+    "strux/WebServerManager/Authenticator.cpp"
+    "strux/WebServerManager/StaticFileHandler.cpp"
+    "strux/WebServerManager/WebSocketHandler.cpp"
+    "strux/WebServerManager/ConnectionRegistry.cpp"
+    "strux/WebServerManager/SessionTable.cpp"
+    "strux/RelayManager/RelayManager.cpp"
+    "strux/RelayManager/RelaySocket.cpp"
+    "strux/TelemetryManager/TelemetryManager.cpp"
+    "strux/CommandManager/CommandManager.cpp"
+    "strux/UpdateManager/UpdateManager.cpp"
+    "strux/UpdateManager/PartitionWriter.cpp"
+    "strux/SettingsManager/SettingsManager.cpp"
+    "strux/SettingsManager/Setting.cpp"
+    "strux/SystemManager/SystemManager.cpp"
+    "strux/ConsoleManager/ConsoleManager.cpp"
+    "strux/TimeManager/TimeManager.cpp"
+)
+
+# ── The application. This is the list Thermy owns.
+set(APP_SOURCES
+    "app/SensorManager/SensorManager.cpp"
+    "app/DisplayManager/DisplayManager.cpp"
+    "app/DisplayManager/DisplayPage.cpp"
+    "app/DisplayManager/HomePage.cpp"
+    "app/DisplayManager/SettingsMenuPage.cpp"
+    "app/DisplayManager/WifiPage.cpp"
+    "app/DisplayManager/SensorPage.cpp"
+    "app/DisplayManager/GraphPage.cpp"
+    "app/DisplayManager/SystemPage.cpp"
+)
+
+set(SOURCE_FILES_LIST
+    "main.cpp"
+    ${LIB_SOURCES}
+    ${STRUX_SOURCES}
+    ${APP_SOURCES}
+)
+
+# Every folder is on the include path, so headers are included by name alone
+# (`#include "Stream.h"`) and moving one between layers does not touch its callers.
 set(INCLUDE_DIRS_LIST
     .
-    "Application"
-    "Application/NetworkManager"
-    "Application/WebServerManager"
-    "Application/RelayManager"
-    "Application/TelemetryManager"
-    "Application/CommandManager"
-    "Application/UpdateManager"
-    "Application/SettingsManager"
-    "Application/SystemManager"
-    "Application/ConsoleManager"
-    "Application/TimeManager"
-    "Application/SensorManager"
-    "Application/DisplayManager"
-    "hardware"
     "lib"
     "lib/common"
     "lib/rtos"
     "lib/json"
     "lib/protocol"
     "lib/system"
+    "strux"
+    "strux/NetworkManager"
+    "strux/WebServerManager"
+    "strux/RelayManager"
+    "strux/TelemetryManager"
+    "strux/CommandManager"
+    "strux/UpdateManager"
+    "strux/SettingsManager"
+    "strux/SystemManager"
+    "strux/ConsoleManager"
+    "strux/TimeManager"
+    "hardware"
+    "app"
+    "app/SensorManager"
+    "app/DisplayManager"
 )
 
 set(COMPONENT_REQUIRES

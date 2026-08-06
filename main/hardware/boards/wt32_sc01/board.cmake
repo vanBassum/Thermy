@@ -13,5 +13,5 @@
 # no sibling board would share it.
 # ──────────────────────────────────────────────────────────────
 
-list(APPEND BOARD_SOURCES "${CMAKE_CURRENT_LIST_DIR}/Board.cpp")
+list(APPEND BOARD_SOURCES "${CMAKE_CURRENT_LIST_DIR}/BoardContext.cpp")
 list(APPEND BOARD_SOURCES "${CMAKE_CURRENT_LIST_DIR}/Display_WT32SC01.cpp")
