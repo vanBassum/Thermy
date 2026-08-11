@@ -505,8 +505,8 @@ class BackendService {
     return true
   }
 
-  /** Upload a .bin as one streamed `writePartition` session: an envelope chunk
-   *  ({"type":"writePartition","partition":...}\n) followed by body chunks, the
+  /** Upload a .bin as one streamed `partition write` session: an envelope chunk
+   *  ({"type":"partition write","partition":...}\n) followed by body chunks, the
    *  last carrying FLAG_FINAL. The device drains it straight to flash and replies
    *  once, at end-of-stream. Runs through the open queue, so nothing else touches
    *  the socket mid-upload (the device would REJECT an interleaved session id). */
@@ -541,7 +541,10 @@ class BackendService {
       })
 
       // Envelope chunk (not FINAL — the body follows on the same session id).
-      const envelope = new TextEncoder().encode(JSON.stringify({ type: "writePartition", partition }) + "\n")
+      // The route is TWO words: ReadCommandRoute splits "<category> <command>" and
+      // rejects a single-word type outright, so "writePartition" never reached the
+      // handler — every upload from this page was refused before it started.
+      const envelope = new TextEncoder().encode(JSON.stringify({ type: "partition write", partition }) + "\n")
       this.sendChunk(session, 0, envelope)
 
       // Body chunks. CHUNK matches the device's inbound window (see WebSocketHandler).
