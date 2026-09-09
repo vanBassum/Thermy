@@ -3,6 +3,7 @@
 #include "AppProvider.h"
 #include "InitState.h"
 #include "CommandEntry.h"
+#include "UiModule.h"
 #include "TypedSettings.h"
 #include "rtos.h"
 #include "onewire_bus.h"
@@ -120,4 +121,18 @@ private:
         { "sensor", "assign", &InvokeCommand<&SensorManager::Cmd_Assign> },
         { "sensor", "clear",  &InvokeCommand<&SensorManager::Cmd_Clear> },
     };
+
+    // ── The web UI (registered with UiManager in Init) ──
+    // The probes ARE the product, so this is the page the shell lands on. Not
+    // because anything here says so: UiManager head-inserts and the application
+    // layer initialises after the framework, so Thermy's module ends up ahead of
+    // Strux's own console/settings/firmware and the first declared page wins.
+    // There is no separate home page to land on instead — a device with one
+    // feature has nothing to put on one.
+    //
+    // `entry` is a path inside the device's own www, named by the firmware and
+    // matched by frontend/modules/temperature/. The page id must equal the one the
+    // bundle registers in its activate().
+    inline static const UiPage uiPages_[] = { { "temperature", "Temperature", "thermometer" } };
+    inline static UiModule uiModule_{ "temperature", "/modules/temperature.js", uiPages_ };
 };

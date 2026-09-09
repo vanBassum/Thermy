@@ -6,8 +6,9 @@
   "packageManager": "pnpm@10.12.1",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/gzip.mjs",
-    "typecheck": "tsc --noEmit",
+    "build": "tsc -b && vite build && pnpm build:modules && node scripts/check-modules.mjs && node scripts/gzip.mjs",
+    "build:modules": "vite build --config modules/temperature/vite.config.ts && vite build --config modules/console/vite.config.ts && vite build --config modules/settings/vite.config.ts && vite build --config modules/firmware/vite.config.ts",
+    "typecheck": "tsc -b --force && tsc -p modules/temperature/tsconfig.json --noEmit && tsc -p modules/console/tsconfig.json --noEmit && tsc -p modules/settings/tsconfig.json --noEmit && tsc -p modules/firmware/tsconfig.json --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -20,7 +21,6 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-simple-code-editor": "^0.14.1",
-    "recharts": "^3.8.0",
     "shadcn": "^4.1.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",

@@ -2,6 +2,7 @@
 #include "SettingsManager.h"
 #include "CommandManager.h"
 #include "TelemetryManager.h"
+#include "UiManager.h"
 #include "BoardContext.h"
 #include "Fatal.h"
 #include "core_utils.h"
@@ -30,6 +31,7 @@ void SensorManager::Init()
         &scanIntervalMs_, &readIntervalMs_, &telemetrySec_,
     });
     app_.getStrux().getCommandManager().Register(this, commands_);
+    app_.getStrux().getUiManager().Register({ &uiModule_ });
 
     // Borrowed, not owned — the board created the bus host and outlives us.
     bus_ = app_.getBoard().GetOneWireBus();
