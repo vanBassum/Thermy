@@ -20,7 +20,7 @@ A smart temperature monitor built on the ESP32 with a touchscreen display and we
 
 No tools to install — flash directly from your browser.
 
-1. Download `Thermy-factory.bin` from the [Releases](../../releases) page
+1. Download `Thermy-wt32_sc01-factory.bin` from the [Releases](../../releases) page
 2. Open the [ESP Web Flasher](https://espressif.github.io/esptool-js/) (Chrome or Edge)
 3. Connect your WT32-SC01 via USB
 4. Select the serial port, set flash offset to `0x0`, upload the binary, and click **Program**
@@ -39,7 +39,7 @@ Wire your DS18B20 sensors to GPIO 4. When a new sensor is detected, a popup appe
 ## Features
 
 - **Touchscreen Display** — Live readings, scrolling temperature graph, and full settings configuration directly on the device
-- **Web Dashboard** — Sensor cards, a live chart, probe assignment, device info, log console, and OTA updates from any browser
+- **Web Dashboard** — Opens straight on the probes: sensor cards, a live chart and probe assignment, with a log console, settings and OTA updates alongside. Device info sits behind the sidebar footer.
 - **Telemetry** — Each probe's temperature is published as an InfluxDB point on a configurable interval, so history lives in a real time-series database instead of on the device's flash
 - **Remote Access** — Optional outbound relay connection, so the device is reachable off-LAN without a port forward (off by default)
 - **Optional Password** — The web UI is open until you set one; after that, sessions resume across reconnects
@@ -51,8 +51,8 @@ Wire your DS18B20 sensors to GPIO 4. When a new sensor is detected, a popup appe
 
 After the initial USB flash, you never need a cable again. From the web UI's **Firmware** page, upload:
 
-- `Thermy-app.bin` — Application firmware
-- `Thermy-www.bin` — Web interface only
+- `Thermy-wt32_sc01-app.bin` — Application firmware
+- `Thermy-wt32_sc01-www.bin` — Web interface only
 
 Dual partitions ensure safe updates — if something goes wrong, the previous firmware is still available.
 
@@ -71,7 +71,9 @@ idf.py -p /dev/ttyUSB0 flash monitor
 
 Thermy is built on [Strux](https://github.com/vanBassum/Strux), a reusable ESP32 application template that provides the web dashboard, command/RPC layer, settings system, telemetry, relay-based remote access, and OTA update infrastructure out of the box. If you want to build your own ESP32 project with similar features, Strux is the place to start.
 
-Everything specific to Thermy is the DS18B20 `SensorManager`, the LVGL `DisplayManager` and its pages, and the `wt32_sc01` board folder — the rest is Strux and is kept diffable against it.
+Everything specific to Thermy is the DS18B20 `SensorManager`, the LVGL `DisplayManager` and its pages, the `wt32_sc01` board folder, and the `temperature` web UI module — the rest is Strux and is kept diffable against it.
+
+Web pages come from the firmware, not from the browser build: the device declares its UI in a `ui modules` command and ships the bundle that draws each page, so the shell in `frontend/src/` contributes no page of its own and names no device command. Thermy's one module is `frontend/modules/temperature/`, and because the firmware declares it first, it is the page the dashboard opens on.
 
 > Earlier versions of Thermy shipped MQTT/Home Assistant integration and an on-flash circular log. Both are gone: devices that exist to live in Home Assistant are better served by ESPHome, and history is telemetry's job now. The last release with them is in the git history.
 
