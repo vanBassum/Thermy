@@ -41,7 +41,7 @@ Wire your DS18B20 sensors to GPIO 4. When a new sensor is detected, a popup appe
 - **Touchscreen Display** — Live readings, scrolling temperature graph, and full settings configuration directly on the device
 - **Web Dashboard** — Opens straight on the probes: sensor cards, a live chart and probe assignment, with a log console, settings and OTA updates alongside. Device info sits behind the sidebar footer.
 - **Telemetry** — Each probe's temperature is published as an InfluxDB point on a configurable interval, so history lives in a real time-series database instead of on the device's flash
-- **Remote Access** — Optional outbound relay connection, so the device is reachable off-LAN without a port forward (off by default)
+- **Remote Access** — Optional outbound relay connection, so the device is reachable off-LAN without a port forward (off by default). The server is Strux's, in its own repository: [vanBassum/strux-relay](https://github.com/vanBassum/strux-relay)
 - **Optional Password** — The web UI is open until you set one; after that, sessions resume across reconnects
 - **WiFi with AP Fallback** — If WiFi fails, Thermy creates its own access point so you're never locked out
 - **Over-the-Air Updates** — After the initial flash, update firmware and web UI wirelessly

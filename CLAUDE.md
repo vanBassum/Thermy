@@ -71,6 +71,12 @@ point, the relay ships it to InfluxDB. `DeviceManager` is gone too: the per-boar
 `BoardContext` replaced its role. Do not reintroduce any of them; the last versions are in
 git history.
 
+`relay-server/` went the same way (2026-09-09), for a different reason: it was a stale
+copy of Strux's, imported once and never touched here, and the relay is now its own
+repository — [vanBassum/strux-relay](https://github.com/vanBassum/strux-relay). Thermy
+dials out to a deployment of that; nothing in this tree builds or serves one. Point
+`relay.url` at it and turn `relay.enabled` on.
+
 ## Build commands
 
 Requires ESP-IDF v6.0 and Node 22+ with pnpm.
