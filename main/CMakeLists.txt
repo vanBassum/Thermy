@@ -32,6 +32,7 @@ set(STRUX_SOURCES
     "strux/SystemManager/SystemManager.cpp"
     "strux/ConsoleManager/ConsoleManager.cpp"
     "strux/TimeManager/TimeManager.cpp"
+    "strux/UiManager/UiManager.cpp"
 )
 
 # ── The application. This is the list Thermy owns.
@@ -75,6 +76,7 @@ set(INCLUDE_DIRS_LIST
     "strux/SystemManager"
     "strux/ConsoleManager"
     "strux/TimeManager"
+    "strux/UiManager"
     "hardware"
     "app"
     "app/SensorManager"
@@ -97,6 +99,9 @@ set(COMPONENT_REQUIRES
     wear_levelling
     esp_driver_gpio
     mdns
+    # Only to report the DFS bounds in `system info` — the scaling itself is
+    # configured by startup code, see CONFIG_PM_ENABLE in sdkconfig.defaults.
+    esp_pm
     # Display: the ST7796 panel is driven over SPI, its backlight through LEDC,
     # and the FT6336 touch controller over I2C.
     esp_lcd
